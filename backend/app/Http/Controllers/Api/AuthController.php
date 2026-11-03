@@ -1,0 +1,94 @@
+<?php
+
+namespace App\Http\Controllers\Api;
+
+use App\Http\Controllers\Controller;
+use App\Models\User;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\RateLimiter;
+use Illuminate\Validation\ValidationException;
+
+/**
+ * Autenticação da SPA (Sanctum, cookie same-origin).
+ *
+ * A sessão é mantida por cookie httpOnly; o SPA apenas consome /api/login,
+ * /api/me e /api/logout. Proteção contra força bruta via rate limiter.
+ */
+class AuthController extends Controller
+{
+    public function login(Request $request): JsonResponse
+    {
+        $credenciais = $request->validate([
+            'email' => ['required', 'email'],
+            'password' => ['required', 'string'],
+        ]);
+
+        $chave = 'login:' . strtolower($credenciais['email']) . '|' . $request->ip();
+
+        if (RateLimiter::tooManyAttempts($chave, 5)) {
+            throw ValidationException::withMessages([
+                'email' => 'Muitas tentativas. Tente novamente em '
+                    . RateLimiter::availableIn($chave) . ' segundos.',
+            ]);
+        }
+
+        if (! Auth::attempt($credenciais, $request->boolean('remember'))) {
+            RateLimiter::hit($chave, 60);
+
+            throw ValidationException::withMessages([
+                'email' => 'Credenciais inválidas.',
+            ]);
+        }
+
+        RateLimiter::clear($chave);
+        $request->session()->regenerate();
+
+        /** @var User $user */
+        $user = Auth::user();
+
+        return response()->json([
+            'user' => $this->dadosUsuario($user),
+        ]);
+    }
+
+    public function me(Request $request): JsonResponse
+    {
+        /** @var User $user */
+        $user = $request->user();
+
+        return response()->json([
+            'user' => $this->dadosUsuario($user),
+        ]);
+    }
+
+    public function logout(Request $request): JsonResponse
+    {
+        Auth::guard('web')->logout();
+
+        $request->session()->invalidate();
+        $request->session()->regenerateToken();
+
+        // Descarta instâncias de guard já resolvidas (evita que o guard
+        // `sanctum` continue "autenticado" no mesmo request/ciclo de teste).
+        Auth::forgetGuards();
+
+        return response()->json(['message' => 'Sessão encerrada.']);
+    }
+
+    /**
+     * Monta a representação segura do usuário (sem senha; com papéis/tenant).
+     */
+    private function dadosUsuario(User $user): array
+    {
+        return [
+            'id' => $user->id,
+            'name' => $user->name,
+            'email' => $user->email,
+            'tenant_id' => $user->tenant_id,
+            'papeis' => $user->getRoleNames(),
+            'permissoes' => $user->getAllPermissions()->pluck('name'),
+        ];
+    }
+}
