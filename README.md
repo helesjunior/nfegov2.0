@@ -46,6 +46,26 @@ docker compose exec app php artisan migrate --seed
 
 A aplicação sobe em `http://localhost:8080`.
 
+## Desenvolvimento
+
+A SPA (React/Vite) é servida pelo próprio Laravel, a partir do build em
+`backend/public/spa`. Para compilar a interface:
+
+```bash
+cd frontend
+npm install
+npm run build     # gera ../backend/public/spa
+```
+
+Para desenvolvimento com recarga a quente, rode `npm run dev` em `frontend/`
+(porta 5173, com proxy de `/api` e `/sanctum` para `localhost:8000`).
+
+> **Nota (Windows/macOS):** em desenvolvimento, o bind mount do código no
+> container (Docker Desktop → WSL2) torna cada requisição do Laravel lenta
+> (alguns segundos), pois o bootstrap lê centenas de arquivos através da
+> ponte de sistema de arquivos. Isso é uma característica do ambiente, não um
+> defeito da aplicação. Em produção, o código é copiado para a imagem.
+
 ## Documentação
 
 - Design: [`docs/nfegov/2026-11-03-nfegov-design.md`](docs/nfegov/2026-11-03-nfegov-design.md)
