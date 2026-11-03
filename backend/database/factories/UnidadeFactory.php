@@ -20,6 +20,8 @@ class UnidadeFactory extends Factory
             'codigo_unidade' => (string) fake()->unique()->numberBetween(1, 9999),
             'cnpj' => fake()->unique()->numerify('##############'),
             'ie' => fake()->numerify('#########'),
+            'uf' => fake()->randomElement(['SP', 'RJ', 'MG', 'RS', 'BA']),
+            'tp_amb' => 2,
             'nome' => fake()->company(),
             'nome_resumido' => fake()->word(),
             'ativo' => true,

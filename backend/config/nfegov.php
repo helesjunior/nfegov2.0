@@ -46,6 +46,10 @@ return [
         // Máximo de consultas distDFe por minuto no servidor inteiro.
         'rate_per_minute' => (int) env('NFEGOV_SEFAZ_RATE_PER_MINUTE', 30),
 
+        // Layout (schemes) e versão do leiaute da NF-e usados pelo sped-nfe.
+        'schemes' => env('NFEGOV_SEFAZ_SCHEMES', 'PL_009_V4'),
+        'versao' => env('NFEGOV_SEFAZ_VERSAO', '4.00'),
+
         // Ao receber cStat 656, a fila de sync pausa por este tempo (minutos).
         'circuit_breaker_minutes' => (int) env('NFEGOV_SEFAZ_CIRCUIT_BREAKER_MINUTES', 60),
 

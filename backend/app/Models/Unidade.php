@@ -21,6 +21,7 @@ class Unidade extends Model
 
     protected $casts = [
         'ativo' => 'boolean',
+        'tp_amb' => 'integer',
     ];
 
     public function tenant()
