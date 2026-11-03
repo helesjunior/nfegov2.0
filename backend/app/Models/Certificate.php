@@ -50,13 +50,16 @@ class Certificate extends Model
 
     /**
      * Dias restantes até o vencimento (negativo quando já venceu).
+     *
+     * Compara por dia-calendário usando o fuso da aplicação, de forma que o
+     * marco (ex.: 30 dias) seja estável independentemente da hora do dia.
      */
     public function diasRestantes(): int
     {
-        return (int) now('America/Sao_Paulo')->startOfDay()->diffInDays(
-            $this->valido_ate->copy()->startOfDay(),
-            false
-        );
+        $hoje = now()->startOfDay();
+        $vencimento = $this->valido_ate->copy()->setTimezone(config('app.timezone'))->startOfDay();
+
+        return (int) $hoje->diffInDays($vencimento, false);
     }
 
     public function vencido(): bool

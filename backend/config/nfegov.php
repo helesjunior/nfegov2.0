@@ -71,6 +71,9 @@ return [
 
         // Validade da janela de MFA recente (step-up) para rotação de certificado.
         'step_up_minutes' => (int) env('NFEGOV_CERT_STEP_UP_MINUTES', 15),
+
+        // Tamanho máximo do arquivo PFX/P12 em KB (padrão 5 MB).
+        'max_kb' => (int) env('NFEGOV_CERT_MAX_KB', 5120),
     ],
 
     /*
@@ -102,11 +105,6 @@ return [
         // Janela (em minutos) de "MFA recente" exigida no step-up de
         // operações sensíveis (ex.: rotação de certificado).
         'step_up_minutos' => (int) env('NFEGOV_MFA_STEP_UP_MINUTOS', 15),
-    ],
-
-    'certificado' => [
-        // Tamanho máximo do arquivo PFX/P12 em KB (padrão 5 MB).
-        'max_kb' => (int) env('NFEGOV_CERT_MAX_KB', 5120),
     ],
 
 ];
