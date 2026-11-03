@@ -45,6 +45,17 @@ class ExpiryAlertTest extends TestCase
         return $unidade;
     }
 
+    /**
+     * Vencimento ancorado no dia-calendário: meio-dia do dia-alvo.
+     *
+     * Evita flakiness em que `addDays(N)->addHours(h)` cruza a fronteira do
+     * dia quando o teste roda à noite (o marco é por dia-calendário).
+     */
+    private function venceEmDias(int $dias): Carbon
+    {
+        return now()->addDays($dias)->startOfDay()->addHours(12);
+    }
+
     public function test_alerta_disparado_no_marco_de_30_dias(): void
     {
         $tenant = Tenant::factory()->create();
@@ -53,7 +64,7 @@ class ExpiryAlertTest extends TestCase
         Certificate::factory()->create([
             'tenant_id' => $tenant->id,
             'unidade_id' => $unidade->id,
-            'valido_ate' => now()->addDays(30)->addHours(2),
+            'valido_ate' => $this->venceEmDias(30),
             'ativo' => true,
         ]);
 
@@ -72,7 +83,7 @@ class ExpiryAlertTest extends TestCase
         Certificate::factory()->create([
             'tenant_id' => $tenant->id,
             'unidade_id' => $unidade->id,
-            'valido_ate' => now()->addDays(45),
+            'valido_ate' => $this->venceEmDias(45),
             'ativo' => true,
         ]);
 
@@ -90,7 +101,7 @@ class ExpiryAlertTest extends TestCase
         Certificate::factory()->create([
             'tenant_id' => $tenant->id,
             'unidade_id' => $unidade->id,
-            'valido_ate' => now()->addDays(7)->addHours(1),
+            'valido_ate' => $this->venceEmDias(7),
             'ativo' => true,
         ]);
 
@@ -110,7 +121,7 @@ class ExpiryAlertTest extends TestCase
         Certificate::factory()->create([
             'tenant_id' => $tenant->id,
             'unidade_id' => $unidade->id,
-            'valido_ate' => now()->addDays(1)->addHours(1),
+            'valido_ate' => $this->venceEmDias(1),
             'ativo' => true,
         ]);
 
@@ -127,7 +138,7 @@ class ExpiryAlertTest extends TestCase
         Certificate::factory()->create([
             'tenant_id' => $tenant->id,
             'unidade_id' => $unidade->id,
-            'valido_ate' => now()->addDays(30),
+            'valido_ate' => $this->venceEmDias(30),
             'ativo' => false,
         ]);
 
@@ -145,11 +156,11 @@ class ExpiryAlertTest extends TestCase
 
         Certificate::factory()->create([
             'tenant_id' => $a->id, 'unidade_id' => $ua->id,
-            'valido_ate' => now()->addDays(60)->addHours(1), 'ativo' => true,
+            'valido_ate' => $this->venceEmDias(60), 'ativo' => true,
         ]);
         Certificate::factory()->create([
             'tenant_id' => $b->id, 'unidade_id' => $ub->id,
-            'valido_ate' => now()->addDays(15)->addHours(1), 'ativo' => true,
+            'valido_ate' => $this->venceEmDias(15), 'ativo' => true,
         ]);
 
         $this->artisan('certificate-alerts:check')->assertSuccessful();

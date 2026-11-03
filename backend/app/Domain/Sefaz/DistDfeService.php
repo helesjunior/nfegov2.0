@@ -32,6 +32,7 @@ class DistDfeService
         private readonly NfeImporter $importer,
         private readonly ManifestacaoService $manifestacao,
         private readonly DownloadService $download,
+        private readonly SefazGuard $guard,
     ) {
     }
 
@@ -61,11 +62,19 @@ class DistDfeService
 
         try {
             for ($i = 0; $i < $maxIteracoes; $i++) {
+                // Freio global: respeita circuit breaker + rate limiter antes
+                // de tocar a SEFAZ. Lança se o circuito estiver aberto ou se o
+                // teto global por minuto foi atingido.
+                $this->guard->beforeCall($unidade);
+
                 $retorno = $this->client->distDFe($unidade, $ultimoNsu);
                 $envelope = $this->parseRetorno($retorno);
 
-                // cStat 656 (consumo indevido) ou erro: parar imediatamente.
+                // cStat 656 (consumo indevido): abre o circuit breaker GLOBAL
+                // e para imediatamente — protege o IP de todas as unidades.
                 if ($envelope['cStat'] === '656') {
+                    $this->guard->tripCircuitBreaker($unidade);
+
                     $run->forceFill(['status' => SyncRun::STATUS_BLOQUEADO])->save();
 
                     return;

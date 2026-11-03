@@ -98,6 +98,7 @@ return [
 
     'waits' => [
         'redis:default' => 60,
+        'redis:sefaz' => 300,
     ],
 
     /*
@@ -210,6 +211,23 @@ return [
             'timeout' => 60,
             'nice' => 0,
         ],
+
+        // Fila DEDICADA à SEFAZ. A concorrência é intencionalmente baixa
+        // (1–2 processos): todas as unidades compartilham o mesmo IP e a
+        // SEFAZ limita por IP. O `timeout` é generoso porque um ciclo de
+        // sync pode ter várias iterações com pausa entre elas.
+        'supervisor-sefaz' => [
+            'connection' => 'redis',
+            'queue' => ['sefaz'],
+            'balance' => false,
+            'processes' => (int) env('NFEGOV_SEFAZ_WORKERS', 2),
+            'maxTime' => 0,
+            'maxJobs' => 0,
+            'memory' => 256,
+            'tries' => 1,
+            'timeout' => 900,
+            'nice' => 0,
+        ],
     ],
 
     'environments' => [
@@ -219,11 +237,17 @@ return [
                 'balanceMaxShift' => 1,
                 'balanceCooldown' => 3,
             ],
+            'supervisor-sefaz' => [
+                'processes' => (int) env('NFEGOV_SEFAZ_WORKERS', 2),
+            ],
         ],
 
         'local' => [
             'supervisor-1' => [
                 'maxProcesses' => 3,
+            ],
+            'supervisor-sefaz' => [
+                'processes' => 1,
             ],
         ],
     ],
