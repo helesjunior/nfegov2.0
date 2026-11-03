@@ -89,6 +89,10 @@ return [
 
         // Raiz, dentro do disco, onde os XMLs ficam.
         'xml_root' => env('NFEGOV_XML_ROOT', 'tenants'),
+
+        // Disco e raiz onde os PFX (cifrados) dos certificados ficam.
+        'cert_disk' => env('NFEGOV_CERT_DISK', 'local'),
+        'cert_root' => env('NFEGOV_CERT_ROOT', 'certificados'),
     ],
 
     'mfa' => [
@@ -98,6 +102,11 @@ return [
         // Janela (em minutos) de "MFA recente" exigida no step-up de
         // operações sensíveis (ex.: rotação de certificado).
         'step_up_minutos' => (int) env('NFEGOV_MFA_STEP_UP_MINUTOS', 15),
+    ],
+
+    'certificado' => [
+        // Tamanho máximo do arquivo PFX/P12 em KB (padrão 5 MB).
+        'max_kb' => (int) env('NFEGOV_CERT_MAX_KB', 5120),
     ],
 
 ];
