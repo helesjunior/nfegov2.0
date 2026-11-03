@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Domain\Nfe\NfeQuery;
 use App\Domain\Nfe\XmlStore;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\IndexNfeRequest;
@@ -30,8 +31,10 @@ class NfeController extends Controller
 {
     use Auditable;
 
-    public function __construct(private readonly XmlStore $store)
-    {
+    public function __construct(
+        private readonly XmlStore $store,
+        private readonly NfeQuery $query,
+    ) {
     }
 
     public function index(IndexNfeRequest $request): AnonymousResourceCollection
@@ -41,21 +44,9 @@ class NfeController extends Controller
         $filtros = $request->validated();
         $perPage = (int) ($filtros['per_page'] ?? 25);
 
-        $query = Nfe::query()
-            ->when($filtros['de'] ?? null, fn ($q, $de) => $q->where('data_emissao', '>=', $de.' 00:00:00'))
-            ->when($filtros['ate'] ?? null, fn ($q, $ate) => $q->where('data_emissao', '<=', $ate.' 23:59:59'))
-            ->when($filtros['unidade_id'] ?? null, fn ($q, $u) => $q->where('unidade_id', $u))
-            ->when($filtros['emitente_cnpj'] ?? null, fn ($q, $c) => $q->where('emitente_cnpj', $c))
-            ->when($filtros['valor_min'] ?? null, fn ($q, $v) => $q->where('valor_total', '>=', $v))
-            ->when($filtros['valor_max'] ?? null, fn ($q, $v) => $q->where('valor_total', '<=', $v))
-            ->when($filtros['chave'] ?? null, fn ($q, $c) => $q->where('chave', $c))
-            ->when($filtros['q'] ?? null, fn ($q, $termo) => $q->where(function ($sub) use ($termo) {
-                $sub->where('emitente_nome', 'ilike', "%{$termo}%")
-                    ->orWhere('numero', 'ilike', "%{$termo}%")
-                    ->orWhere('chave', 'ilike', "%{$termo}%");
-            }));
-
-        return NfeResource::collection($query->latest('data_emissao')->paginate($perPage));
+        return NfeResource::collection(
+            $this->query->build($filtros)->latest('data_emissao')->paginate($perPage)
+        );
     }
 
     public function show(Request $request, string $chave): JsonResponse

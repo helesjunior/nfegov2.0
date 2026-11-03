@@ -28,6 +28,7 @@ class IndexNfeRequest extends FormRequest
             'valor_max' => ['nullable', 'numeric'],
             'chave' => ['nullable', 'string', 'max:44'],
             'q' => ['nullable', 'string', 'max:120'],
+            'formato' => ['nullable', 'string', 'in:csv,xlsx'],
             'per_page' => ['nullable', 'integer', 'min:1', 'max:100'],
             'page' => ['nullable', 'integer', 'min:1'],
         ];

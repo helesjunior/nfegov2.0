@@ -31,6 +31,14 @@ class NfePolicy
         return $this->podeVer($user, $nfe, 'nfe.export');
     }
 
+    /**
+     * Exportação em massa (sem uma NF-e específica): exige `nfe.export`.
+     */
+    public function exportAny(User $user): bool
+    {
+        return $this->ehSuperAdmin($user) || $user->can('nfe.export');
+    }
+
     public function downloadXml(User $user, Nfe $nfe): bool
     {
         return $this->podeVer($user, $nfe, 'nfe.export');

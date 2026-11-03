@@ -3,6 +3,7 @@
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\CertificateController;
 use App\Http\Controllers\Api\DashboardController;
+use App\Http\Controllers\Api\ExportController;
 use App\Http\Controllers\Api\MfaController;
 use App\Http\Controllers\Api\NfeController;
 use App\Http\Controllers\Api\SyncRunController;
@@ -58,6 +59,10 @@ Route::middleware('web')->group(function () {
             ->middleware('signed')
             ->name('api.nfes.xml');
         Route::get('/nfes/{chave}/danfe', [NfeController::class, 'danfe'])->name('api.nfes.danfe');
+
+        // Exportações assíncronas (CSV/XLSX e ZIP de XMLs).
+        Route::post('/nfes/export', [ExportController::class, 'store'])->name('api.nfes.export');
+        Route::post('/nfes/export-xml', [ExportController::class, 'xml'])->name('api.nfes.export-xml');
 
         // Unidades gestoras.
         Route::get('/unidades', [UnidadeController::class, 'index'])->name('api.unidades.index');

@@ -13,6 +13,7 @@
         "laravel/tinker": "^3.0",
         "nfephp-org/sped-da": "^1.1",
         "nfephp-org/sped-nfe": "^5.2",
+        "openspout/openspout": "^4.28",
         "pragmarx/google2fa": "^9.1",
         "spatie/laravel-permission": "^8.3"
     },
