@@ -6,6 +6,8 @@ use App\Models\Certificate;
 use App\Models\Nfe;
 use App\Models\SyncRun;
 use App\Models\Unidade;
+use App\Domain\Sefaz\SefazClient;
+use App\Domain\Sefaz\SpedSefazClient;
 use App\Policies\CertificatePolicy;
 use App\Policies\NfePolicy;
 use App\Policies\SyncRunPolicy;
@@ -34,7 +36,9 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        //
+        // Comunicação com a SEFAZ: implementação real por padrão; testes
+        // substituem o binding por um mock (`SefazClient`).
+        $this->app->bind(SefazClient::class, SpedSefazClient::class);
     }
 
     /**

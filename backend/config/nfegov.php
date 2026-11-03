@@ -61,6 +61,14 @@ return [
 
         // Concorrência máxima de workers na fila da SEFAZ (mesmo IP).
         'workers' => (int) env('NFEGOV_SEFAZ_WORKERS', 2),
+
+        // Freio anti-bloqueio por unidade (réplica dos limites do legado).
+        // Máximo de iterações (consultas distDFe) por execução de sync.
+        'max_iteracoes' => (int) env('NFEGOV_SEFAZ_MAX_ITERACOES', 150),
+        // Máximo de documentos processados por execução.
+        'max_docs' => (int) env('NFEGOV_SEFAZ_MAX_DOCS', 100),
+        // Pausa (segundos) entre consultas, para não martelar a SEFAZ.
+        'sleep_segundos' => (int) env('NFEGOV_SEFAZ_SLEEP', 2),
     ],
 
     /*
