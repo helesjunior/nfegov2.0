@@ -91,4 +91,13 @@ return [
         'xml_root' => env('NFEGOV_XML_ROOT', 'tenants'),
     ],
 
+    'mfa' => [
+        // Papéis que são OBRIGADOS a configurar/confirmar o segundo fator.
+        'papeis_obrigatorios' => ['super-admin', 'admin-tenant'],
+
+        // Janela (em minutos) de "MFA recente" exigida no step-up de
+        // operações sensíveis (ex.: rotação de certificado).
+        'step_up_minutos' => (int) env('NFEGOV_MFA_STEP_UP_MINUTOS', 15),
+    ],
+
 ];

@@ -15,6 +15,11 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware): void {
         // SPA no mesmo domínio: Sanctum autentica por cookie de sessão.
         $middleware->statefulApi();
+
+        $middleware->alias([
+            'mfa' => \App\Http\Middleware\RequireMfa::class,
+            'mfa.recent' => \App\Http\Middleware\RequireRecentMfa::class,
+        ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->shouldRenderJsonWhen(

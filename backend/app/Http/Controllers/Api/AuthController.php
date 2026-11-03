@@ -82,6 +82,9 @@ class AuthController extends Controller
      */
     private function dadosUsuario(User $user): array
     {
+        $twoFactor = app(\App\Services\TwoFactorService::class);
+        $exigeMfa = $user->hasAnyRole(config('nfegov.mfa.papeis_obrigatorios', ['super-admin', 'admin-tenant']));
+
         return [
             'id' => $user->id,
             'name' => $user->name,
@@ -89,6 +92,9 @@ class AuthController extends Controller
             'tenant_id' => $user->tenant_id,
             'papeis' => $user->getRoleNames(),
             'permissoes' => $user->getAllPermissions()->pluck('name'),
+            // Sinaliza ao SPA que o segundo fator precisa ser configurado.
+            'mfa_pendente' => $exigeMfa && ! $twoFactor->confirmado($user),
+            'mfa_confirmado' => $twoFactor->confirmado($user),
         ];
     }
 }
