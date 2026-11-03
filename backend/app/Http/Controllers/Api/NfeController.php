@@ -6,6 +6,7 @@ use App\Domain\Nfe\XmlStore;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\IndexNfeRequest;
 use App\Http\Resources\NfeResource;
+use App\Models\Concerns\Auditable;
 use App\Models\Nfe;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -27,6 +28,8 @@ use Symfony\Component\HttpFoundation\Response;
  */
 class NfeController extends Controller
 {
+    use Auditable;
+
     public function __construct(private readonly XmlStore $store)
     {
     }
@@ -85,6 +88,9 @@ class NfeController extends Controller
 
         $xml = $this->store->get($nfe->xml_path);
 
+        // Download auditado: quem baixou o XML de qual chave.
+        $this->audit('nfe.xml.baixado', [], 'nfe', $nfe->chave, $request->user(), $request);
+
         return response($xml, 200, [
             'Content-Type' => 'application/xml',
             'Content-Disposition' => 'inline; filename="'.$chave.'.xml"',
@@ -108,6 +114,9 @@ class NfeController extends Controller
         $danfe->exibirTextoFatura(false);
 
         $pdf = $danfe->pdf();
+
+        // Geração de DANFE também é um acesso sensível auditável.
+        $this->audit('nfe.danfe.gerado', [], 'nfe', $nfe->chave, $request->user(), $request);
 
         return response($pdf, 200, [
             'Content-Type' => 'application/pdf',

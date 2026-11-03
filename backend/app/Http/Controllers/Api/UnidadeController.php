@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreUnidadeRequest;
 use App\Http\Resources\UnidadeResource;
+use App\Models\Concerns\Auditable;
 use App\Models\Unidade;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
@@ -18,6 +19,8 @@ use Illuminate\Support\Facades\Gate;
  */
 class UnidadeController extends Controller
 {
+    use Auditable;
+
     public function index(): AnonymousResourceCollection
     {
         Gate::authorize('viewAny', Unidade::class);
@@ -35,6 +38,15 @@ class UnidadeController extends Controller
 
         // O tenant_id vem do contexto ativo (middleware `tenant`).
         $unidade = Unidade::create($dados);
+
+        $this->audit(
+            'unidade.criada',
+            ['cnpj' => $unidade->cnpj, 'uf' => $unidade->uf],
+            'unidade',
+            $unidade->id,
+            $request->user(),
+            $request,
+        );
 
         return (new UnidadeResource($unidade))->response()->setStatusCode(201);
     }

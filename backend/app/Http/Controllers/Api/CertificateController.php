@@ -6,6 +6,7 @@ use App\Domain\Certificate\CertificateService;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreCertificateRequest;
 use App\Models\Certificate;
+use App\Models\Concerns\Auditable;
 use App\Models\Unidade;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -26,6 +27,8 @@ use Illuminate\Support\Facades\Gate;
  */
 class CertificateController extends Controller
 {
+    use Auditable;
+
     public function __construct(private readonly CertificateService $service)
     {
     }
@@ -56,6 +59,16 @@ class CertificateController extends Controller
             $unidade,
             $request->file('arquivo'),
             $request->input('senha'),
+        );
+
+        // Trilha de auditoria: registra a rotação SEM dados sensíveis.
+        $this->audit(
+            'certificado.rotacionado',
+            ['entidade' => 'unidade', 'cnpj' => $cert->cnpj, 'valido_ate' => $cert->valido_ate?->toIso8601String()],
+            'unidade',
+            $unidade->id,
+            $request->user(),
+            $request,
         );
 
         return response()->json(['certificado' => $this->metadados($cert)], 201);

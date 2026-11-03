@@ -2,6 +2,7 @@
 
 namespace App\Domain\Sefaz;
 
+use App\Domain\Audit\AuditLogger;
 use App\Models\Manifestacao;
 use App\Models\Unidade;
 
@@ -18,8 +19,10 @@ class ManifestacaoService
 {
     private const EVENTO_CIENCIA = '210210';
 
-    public function __construct(private readonly SefazClient $client)
-    {
+    public function __construct(
+        private readonly SefazClient $client,
+        private readonly AuditLogger $audit,
+    ) {
     }
 
     /**
@@ -54,6 +57,15 @@ class ManifestacaoService
             'n_seq_evento' => 1,
             'enviado_em' => now(),
         ]);
+
+        // Ciência é automática (job/sistema): auditamos sem usuário.
+        $this->audit->log(
+            null,
+            'nfe.ciencia.enviada',
+            ['unidade_id' => $unidade->id, 'tp_evento' => self::EVENTO_CIENCIA],
+            'nfe',
+            $chave,
+        );
 
         return true;
     }
