@@ -1,0 +1,112 @@
+# Stack de desenvolvimento/produção do NFeGov 2.0
+# Serviços: postgres, redis, app (php-fpm), nginx, horizon, scheduler
+# Uso: docker compose up -d --build
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: nfegov_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${DB_DATABASE:-nfegov}
+      POSTGRES_USER: ${DB_USERNAME:-nfegov}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-nfegov}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    ports:
+      - "${DB_PORT_HOST:-5433}:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME:-nfegov} -d ${DB_DATABASE:-nfegov}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: nfegov_redis
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  app:
+    build:
+      context: ./backend
+      dockerfile: ../docker/php/Dockerfile
+    container_name: nfegov_app
+    restart: unless-stopped
+    working_dir: /var/www/html
+    volumes:
+      - ./backend:/var/www/html
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      DB_CONNECTION: pgsql
+      DB_HOST: postgres
+      DB_PORT: 5432
+      REDIS_HOST: redis
+
+  nginx:
+    image: nginx:1.27-alpine
+    container_name: nfegov_nginx
+    restart: unless-stopped
+    ports:
+      - "${HTTP_PORT:-8080}:80"
+    volumes:
+      - ./backend:/var/www/html
+      - ./docker/nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - app
+
+  horizon:
+    build:
+      context: ./backend
+      dockerfile: ../docker/php/Dockerfile
+    container_name: nfegov_horizon
+    restart: unless-stopped
+    working_dir: /var/www/html
+    command: ["php", "artisan", "horizon"]
+    volumes:
+      - ./backend:/var/www/html
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      DB_CONNECTION: pgsql
+      DB_HOST: postgres
+      DB_PORT: 5432
+      REDIS_HOST: redis
+
+  scheduler:
+    build:
+      context: ./backend
+      dockerfile: ../docker/php/Dockerfile
+    container_name: nfegov_scheduler
+    restart: unless-stopped
+    working_dir: /var/www/html
+    command: ["php", "artisan", "schedule:work"]
+    volumes:
+      - ./backend:/var/www/html
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      DB_CONNECTION: pgsql
+      DB_HOST: postgres
+      DB_PORT: 5432
+      REDIS_HOST: redis
+
+volumes:
+  pgdata:
+  redisdata:
