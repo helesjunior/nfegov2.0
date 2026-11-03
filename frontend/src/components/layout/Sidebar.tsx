@@ -18,7 +18,6 @@ const ITENS: ItemMenu[] = [
   { para: '/', rotulo: 'Painel', exato: true },
   { para: '/nfes', rotulo: 'NF-e', permissoes: ['nfe.view'] },
   { para: '/unidades', rotulo: 'Unidades', permissoes: ['nfe.view'] },
-  { para: '/certificados', rotulo: 'Certificados', permissoes: ['certificado.gerenciar'] },
   { para: '/sync', rotulo: 'Sincronizações', permissoes: ['nfe.view'] },
 ]
 

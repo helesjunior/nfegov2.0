@@ -269,3 +269,116 @@ a:hover {
     flex-wrap: wrap;
   }
 }
+
+/* ---- Ficha (definições) ---- */
+
+.ficha {
+  display: grid;
+  grid-template-columns: 160px 1fr;
+  gap: var(--esp-2) var(--esp-4);
+  margin: 0 0 var(--esp-5);
+}
+
+.ficha dt {
+  color: var(--cor-texto-suave);
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.ficha dd {
+  margin: 0;
+}
+
+/* ---- Selos de status ---- */
+
+.selo {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.selo--ok {
+  background: color-mix(in srgb, var(--cor-sucesso) 15%, transparent);
+  color: var(--cor-sucesso);
+}
+
+.selo--alerta {
+  background: color-mix(in srgb, var(--cor-alerta) 15%, transparent);
+  color: var(--cor-alerta);
+}
+
+.selo--erro {
+  background: color-mix(in srgb, var(--cor-erro) 15%, transparent);
+  color: var(--cor-erro);
+}
+
+.selo--neutro {
+  background: var(--cor-superficie-2);
+  color: var(--cor-texto-suave);
+}
+
+/* ---- Modal ---- */
+
+.modal-fundo {
+  position: fixed;
+  inset: 0;
+  background: rgba(8, 12, 18, 0.55);
+  display: grid;
+  place-items: center;
+  padding: var(--esp-5);
+  z-index: 50;
+}
+
+.modal-caixa {
+  width: 100%;
+  max-width: 480px;
+}
+
+.modal-acoes {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--esp-3);
+  margin-top: var(--esp-5);
+}
+
+/* ---- Barra de filtros ---- */
+
+.filtros {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--esp-3);
+  align-items: flex-end;
+  margin-bottom: var(--esp-5);
+}
+
+.filtros .campo {
+  margin-bottom: 0;
+}
+
+/* ---- Cabeçalho de página ---- */
+
+.pagina-topo {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--esp-4);
+  margin-bottom: var(--esp-5);
+}
+
+.pagina-topo h1 {
+  margin: 0;
+}
+
+/* ---- Paginação ---- */
+
+.paginacao {
+  display: flex;
+  align-items: center;
+  gap: var(--esp-3);
+  justify-content: flex-end;
+  margin-top: var(--esp-4);
+  font-size: 0.875rem;
+  color: var(--cor-texto-suave);
+}

@@ -1,41 +1,32 @@
+import { Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
-import { http } from '../../lib/api'
-
-interface ResumoDashboard {
-  nfes: {
-    total: number
-    ultimos_30_dias: number
-    valor_ultimos_30_dias: number
-    resumos: number
-  }
-  unidades: { total: number; ativas: number }
-  certificados: { vencendo_30_dias: number; vencidos: number }
-  sync: { com_erro_24h: number; circuito_aberto: boolean }
-}
+import { dashboardApi } from '../../lib/api'
+import { formatarDataHora, formatarMoeda, rotularStatusSync } from '../../lib/format'
 
 /**
- * Painel inicial.
+ * Painel inicial: visão geral da recepção de NF-e.
  *
- * Versão enxuta (a tela completa é a Task 20): apresenta os indicadores
- * principais e sinaliza quando o freio da SEFAZ está acionado.
+ * Reúne os indicadores principais, o estado do freio da SEFAZ e as últimas
+ * execuções de sincronização.
  */
 export function DashboardPage() {
   const { data, isLoading, isError } = useQuery({
     queryKey: ['dashboard'],
-    queryFn: async () => {
-      const { data } = await http.get<ResumoDashboard>('/dashboard')
-      return data
-    },
+    queryFn: () => dashboardApi.obter(),
   })
 
   if (isLoading) return <div className="card">Carregando indicadores…</div>
-  if (isError || !data) return <div className="alerta alerta--erro">Não foi possível carregar o painel.</div>
+  if (isError || !data) {
+    return <div className="alerta alerta--erro">Não foi possível carregar o painel.</div>
+  }
 
   const cartoes = [
-    { rotulo: 'NF-e recebidas', valor: data.nfes.total },
-    { rotulo: 'NF-e (30 dias)', valor: data.nfes.ultimos_30_dias },
-    { rotulo: 'Unidades ativas', valor: data.unidades.ativas },
-    { rotulo: 'Certificados vencendo (30d)', valor: data.certificados.vencendo_30_dias },
+    { rotulo: 'NF-e recebidas', valor: String(data.nfes.total) },
+    { rotulo: 'NF-e (30 dias)', valor: String(data.nfes.ultimos_30_dias) },
+    { rotulo: 'Valor (30 dias)', valor: formatarMoeda(data.nfes.valor_ultimos_30_dias) },
+    { rotulo: 'Resumos pendentes', valor: String(data.nfes.resumos) },
+    { rotulo: 'Unidades ativas', valor: `${data.unidades.ativas} / ${data.unidades.total}` },
+    { rotulo: 'Certificados vencendo (30d)', valor: String(data.certificados.vencendo_30_dias) },
   ]
 
   return (
@@ -44,15 +35,22 @@ export function DashboardPage() {
 
       {data.sync.circuito_aberto && (
         <div className="alerta alerta--erro">
-          O acesso à SEFAZ está temporariamente suspenso (consumo indevido). As
+          O acesso à SEFAZ está temporariamente suspenso (freio anti-bloqueio). As
           sincronizações retomam automaticamente.
         </div>
       )}
 
       {data.certificados.vencidos > 0 && (
         <div className="alerta alerta--erro">
-          {data.certificados.vencidos} certificado(s) vencido(s). Renove para manter a
-          recepção de NF-e.
+          {data.certificados.vencidos} certificado(s) vencido(s). Renove para manter a recepção de
+          NF-e.
+        </div>
+      )}
+
+      {data.sync.com_erro_24h > 0 && (
+        <div className="alerta alerta--info">
+          {data.sync.com_erro_24h} sincronização(ões) com erro nas últimas 24 horas.{' '}
+          <Link to="/sync">Ver detalhes</Link>
         </div>
       )}
 
@@ -66,9 +64,38 @@ export function DashboardPage() {
         {cartoes.map((c) => (
           <div className="card" key={c.rotulo}>
             <div className="shell__usuario">{c.rotulo}</div>
-            <div style={{ fontSize: '1.8rem', fontWeight: 700 }}>{c.valor}</div>
+            <div style={{ fontSize: '1.6rem', fontWeight: 700 }}>{c.valor}</div>
           </div>
         ))}
+      </div>
+
+      <h2 style={{ marginTop: 'var(--esp-6)' }}>Últimas sincronizações</h2>
+      <div className="card" style={{ padding: 0 }}>
+        <table className="tabela">
+          <thead>
+            <tr>
+              <th>Início</th>
+              <th>Status</th>
+              <th>Documentos</th>
+            </tr>
+          </thead>
+          <tbody>
+            {data.sync.ultimas.map((s) => (
+              <tr key={s.id}>
+                <td>{formatarDataHora(s.iniciado_em)}</td>
+                <td>{rotularStatusSync(s.status)}</td>
+                <td>{s.docs_count}</td>
+              </tr>
+            ))}
+            {data.sync.ultimas.length === 0 && (
+              <tr>
+                <td colSpan={3} style={{ textAlign: 'center', color: 'var(--cor-texto-suave)' }}>
+                  Nenhuma sincronização registrada.
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
       </div>
     </div>
   )

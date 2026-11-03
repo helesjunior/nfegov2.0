@@ -4,6 +4,9 @@ import { LoginPage } from '../features/auth/LoginPage'
 import { MfaPage } from '../features/auth/MfaPage'
 import { useSessao } from '../features/auth/session'
 import { DashboardPage } from '../features/dashboard/DashboardPage'
+import { UnidadeCertificadoRoute } from '../features/certificados/UnidadeCertificadoRoute'
+import { UnidadesPage } from '../features/unidades/UnidadesPage'
+import { SyncPage } from '../features/sync/SyncPage'
 
 /**
  * Guard de rota autenticada.
@@ -42,22 +45,22 @@ export const routes: RouteObject[] = [
     children: [
       { index: true, element: <DashboardPage /> },
       { path: 'nfes', element: <Placeholder titulo="NF-e" /> },
-      { path: 'unidades', element: <Placeholder titulo="Unidades" /> },
-      { path: 'certificados', element: <Placeholder titulo="Certificados" /> },
-      { path: 'sync', element: <Placeholder titulo="Sincronizações" /> },
+      { path: 'unidades', element: <UnidadesPage /> },
+      { path: 'unidades/:id/certificado', element: <UnidadeCertificadoRoute /> },
+      { path: 'sync', element: <SyncPage /> },
     ],
   },
   { path: '*', element: <Navigate to="/" replace /> },
 ]
 
 /**
- * Placeholder das telas que chegam nas próximas tarefas (20 e 21).
+ * Placeholder das telas que chegam na próxima tarefa (lista/detalhe de NF-e).
  */
 function Placeholder({ titulo }: { titulo: string }) {
   return (
     <div className="card">
       <h2 style={{ marginTop: 0 }}>{titulo}</h2>
-      <p className="shell__usuario">Esta tela será construída nas próximas etapas.</p>
+      <p className="shell__usuario">Esta tela será construída na próxima etapa.</p>
     </div>
   )
 }

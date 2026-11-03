@@ -15,8 +15,29 @@ use App\Models\Unidade;
 use App\Models\User;
 use Database\Seeders\RolesSeeder;
 use Illuminate\Support\Facades\Hash;
+use Spatie\Permission\Models\Role;
 
 (new RolesSeeder())->run();
+
+/**
+ * Papel de conveniência para inspeção local da interface.
+ *
+ * TEMPORÁRIO e apenas para desenvolvimento: replica as permissões do
+ * `admin-tenant`, mas NÃO está em `nfegov.mfa.papeis_obrigatorios` — então o
+ * middleware `RequireMfa` não bloqueia o acesso sem configurar o TOTP.
+ *
+ * NUNCA use este papel em produção. Para removê-lo:
+ *   Role::findByName('admin-demo', 'web')->delete();
+ */
+$adminDemo = Role::findOrCreate('admin-demo', 'web');
+$adminDemo->syncPermissions([
+    'nfe.view',
+    'nfe.export',
+    'certificado.gerenciar',
+    'unidade.gerenciar',
+    'usuario.gerenciar',
+    'sync.executar',
+]);
 
 $tenant = Tenant::firstOrCreate(
     ['cnpj' => '00000000000191'],
@@ -40,7 +61,15 @@ $operador = User::firstOrCreate(
 );
 $operador->assignRole('operador');
 
+// Admin de demonstração SEM MFA (apenas para inspeção local da interface).
+$adminSemMfa = User::firstOrCreate(
+    ['email' => 'admin.semmfa@agu.gov.br'],
+    ['name' => 'Admin Demo (sem MFA)', 'password' => Hash::make('senha123'), 'tenant_id' => $tenant->id],
+);
+$adminSemMfa->assignRole('admin-demo');
+
 echo "Pronto!\n";
-echo "  admin@agu.gov.br    / senha123  (admin-tenant — exige MFA)\n";
-echo "  operador@agu.gov.br / senha123  (operador — sem MFA)\n";
+echo "  admin@agu.gov.br         / senha123  (admin-tenant — exige MFA)\n";
+echo "  admin.semmfa@agu.gov.br  / senha123  (admin-demo — SEM MFA, só p/ testes)\n";
+echo "  operador@agu.gov.br      / senha123  (operador — sem MFA)\n";
 echo "  Tenant #{$tenant->id}, Unidade #{$unidade->id}\n";
