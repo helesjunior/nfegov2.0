@@ -1,0 +1,76 @@
+/**
+ * Design tokens do sistema.
+ *
+ * Centraliza cores, espaçamentos, raios e tipografia para manter a interface
+ * consistente. Suporta tema claro e escuro (respeitando a preferência do
+ * sistema e com sobrescrita manual via `data-tema`).
+ */
+
+:root {
+  /* Cores — tema claro */
+  --cor-fundo: #f6f7f9;
+  --cor-superficie: #ffffff;
+  --cor-superficie-2: #f0f2f5;
+  --cor-borda: #d9dee5;
+  --cor-texto: #1b2430;
+  --cor-texto-suave: #5b6673;
+
+  --cor-primaria: #14539a;
+  --cor-primaria-forte: #0f3f77;
+  --cor-primaria-contraste: #ffffff;
+
+  --cor-sucesso: #1c7c4a;
+  --cor-alerta: #a86400;
+  --cor-erro: #b42318;
+  --cor-info: #14539a;
+
+  /* Espaçamentos */
+  --esp-1: 4px;
+  --esp-2: 8px;
+  --esp-3: 12px;
+  --esp-4: 16px;
+  --esp-5: 24px;
+  --esp-6: 32px;
+
+  /* Raios e sombras */
+  --raio-1: 4px;
+  --raio-2: 8px;
+  --raio-3: 12px;
+  --sombra-1: 0 1px 2px rgba(16, 24, 40, 0.06), 0 1px 3px rgba(16, 24, 40, 0.1);
+
+  /* Tipografia */
+  --fonte: system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  --fonte-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+
+  --layout-largura-menu: 240px;
+}
+
+/* Tema escuro por preferência do sistema... */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-tema='claro']) {
+    --cor-fundo: #10151c;
+    --cor-superficie: #171e27;
+    --cor-superficie-2: #1e2733;
+    --cor-borda: #2a3442;
+    --cor-texto: #e7ecf2;
+    --cor-texto-suave: #9aa7b6;
+
+    --cor-primaria: #4d92e0;
+    --cor-primaria-forte: #6ba6ea;
+    --cor-primaria-contraste: #0b1220;
+  }
+}
+
+/* ...e sobrescrita manual explícita. */
+:root[data-tema='escuro'] {
+  --cor-fundo: #10151c;
+  --cor-superficie: #171e27;
+  --cor-superficie-2: #1e2733;
+  --cor-borda: #2a3442;
+  --cor-texto: #e7ecf2;
+  --cor-texto-suave: #9aa7b6;
+
+  --cor-primaria: #4d92e0;
+  --cor-primaria-forte: #6ba6ea;
+  --cor-primaria-contraste: #0b1220;
+}
