@@ -2,7 +2,11 @@
 
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\CertificateController;
+use App\Http\Controllers\Api\DashboardController;
 use App\Http\Controllers\Api\MfaController;
+use App\Http\Controllers\Api\NfeController;
+use App\Http\Controllers\Api\SyncRunController;
+use App\Http\Controllers\Api\UnidadeController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -46,6 +50,22 @@ Route::middleware('web')->group(function () {
     Route::middleware(['auth:sanctum', 'tenant', 'mfa'])->group(function () {
         Route::get('/unidades/{unidade}/certificado', [CertificateController::class, 'show'])
             ->name('api.unidades.certificado.show');
+
+        // NF-e: listagem, detalhe, XML (assinado) e DANFE.
+        Route::get('/nfes', [NfeController::class, 'index'])->name('api.nfes.index');
+        Route::get('/nfes/{chave}', [NfeController::class, 'show'])->name('api.nfes.show');
+        Route::get('/nfes/{chave}/xml', [NfeController::class, 'xml'])
+            ->middleware('signed')
+            ->name('api.nfes.xml');
+        Route::get('/nfes/{chave}/danfe', [NfeController::class, 'danfe'])->name('api.nfes.danfe');
+
+        // Unidades gestoras.
+        Route::get('/unidades', [UnidadeController::class, 'index'])->name('api.unidades.index');
+        Route::post('/unidades', [UnidadeController::class, 'store'])->name('api.unidades.store');
+
+        // Sincronizações e painel.
+        Route::get('/sync-runs', [SyncRunController::class, 'index'])->name('api.sync-runs.index');
+        Route::get('/dashboard', DashboardController::class)->name('api.dashboard');
     });
 
     // Operações SENSÍVEIS: exigem MFA recente (step-up).
