@@ -30,6 +30,8 @@ class DistDfeService
         private readonly SefazClient $client,
         private readonly DocZipDecoder $decoder,
         private readonly NfeImporter $importer,
+        private readonly ManifestacaoService $manifestacao,
+        private readonly DownloadService $download,
     ) {
     }
 
@@ -138,8 +140,8 @@ class DistDfeService
             // Ciência da operação + reconsulta do XML completo.
             $chave = $this->chaveDoResumo($xml);
             if ($chave) {
-                $this->client->manifestarCiencia($unidade, $chave);
-                $completo = $this->client->baixarPorChave($unidade, $chave);
+                $this->manifestacao->ciencia($unidade, $chave);
+                $completo = $this->download->porChave($unidade, $chave);
 
                 if ($completo) {
                     $this->importer->import($unidade, $nsu, $completo);
