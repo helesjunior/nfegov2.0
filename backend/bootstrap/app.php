@@ -19,6 +19,24 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'mfa' => \App\Http\Middleware\RequireMfa::class,
             'mfa.recent' => \App\Http\Middleware\RequireRecentMfa::class,
+            'tenant' => \App\Http\Middleware\SetTenantContext::class,
+        ]);
+
+        // Seta o tenant DEPOIS da autenticação (prioridade logo após o
+        // `Authenticate`), para que `$request->user()` já esteja resolvido.
+        $middleware->appendToGroup('api', \App\Http\Middleware\SetTenantContext::class);
+        $middleware->appendToGroup('web', \App\Http\Middleware\SetTenantContext::class);
+
+        $middleware->priority([
+            \Illuminate\Foundation\Http\Middleware\HandlePrecognitiveRequests::class,
+            \Illuminate\Cookie\Middleware\EncryptCookies::class,
+            \Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse::class,
+            \Illuminate\Session\Middleware\StartSession::class,
+            \Illuminate\View\Middleware\ShareErrorsFromSession::class,
+            \Illuminate\Routing\Middleware\ValidateCsrfToken::class,
+            \Illuminate\Auth\Middleware\Authenticate::class,
+            \App\Http\Middleware\SetTenantContext::class,
+            \Illuminate\Auth\Middleware\Authorize::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
