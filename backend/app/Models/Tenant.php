@@ -29,8 +29,8 @@ class Tenant extends Model
         return $this->hasMany(Unidade::class);
     }
 
-    public function users()
+    public function users(): \Illuminate\Database\Eloquent\Relations\BelongsToMany
     {
-        return $this->hasMany(User::class);
+        return $this->belongsToMany(User::class, 'tenant_user');
     }
 }

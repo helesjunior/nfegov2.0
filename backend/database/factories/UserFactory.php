@@ -42,4 +42,15 @@ class UserFactory extends Factory
             'email_verified_at' => null,
         ]);
     }
+
+    /**
+     * Cria o usuário já vinculado a uma entidade (pivô tenant_user + coluna legada).
+     */
+    public function comTenant(\App\Models\Tenant|int $tenant): static
+    {
+        $tenantId = $tenant instanceof \App\Models\Tenant ? $tenant->id : $tenant;
+
+        return $this->state(fn () => ['tenant_id' => $tenantId])
+            ->afterCreating(fn (User $user) => $user->tenants()->syncWithoutDetaching([$tenantId]));
+    }
 }

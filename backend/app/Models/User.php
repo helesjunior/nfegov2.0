@@ -42,6 +42,14 @@ class User extends Authenticatable
     }
 
     /**
+     * Entidades às quais o usuário tem acesso (fonte de verdade dos vínculos).
+     */
+    public function tenants(): \Illuminate\Database\Eloquent\Relations\BelongsToMany
+    {
+        return $this->belongsToMany(Tenant::class, 'tenant_user');
+    }
+
+    /**
      * O usuário tem MFA confirmado e utilizável?
      */
     public function temMfaConfirmado(): bool

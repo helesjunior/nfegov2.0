@@ -38,7 +38,8 @@ class ExpiryAlertTest extends TestCase
         $unidade = Unidade::factory()->create(['tenant_id' => $tenant->id]);
 
         for ($i = 0; $i < $qtdAdmins; $i++) {
-            $u = User::factory()->create(['tenant_id' => $tenant->id]);
+            // Cria já com o vínculo em tenant_user (fonte de verdade).
+            $u = User::factory()->comTenant($tenant)->create();
             $u->assignRole('admin-tenant');
         }
 
