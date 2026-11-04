@@ -21,6 +21,7 @@ class UnidadeResource extends JsonResource
 
         return [
             'id' => $this->id,
+            'tenant_id' => $this->tenant_id,
             'codigo_unidade' => $this->codigo_unidade,
             'nome' => $this->nome,
             'nome_resumido' => $this->nome_resumido,

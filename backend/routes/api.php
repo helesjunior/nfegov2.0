@@ -72,6 +72,9 @@ Route::middleware('web')->group(function () {
         // Unidades gestoras.
         Route::get('/unidades', [UnidadeController::class, 'index'])->name('api.unidades.index');
         Route::post('/unidades', [UnidadeController::class, 'store'])->name('api.unidades.store');
+        Route::get('/unidades/{unidade}', [UnidadeController::class, 'show'])->name('api.unidades.show');
+        Route::put('/unidades/{unidade}', [UnidadeController::class, 'update'])->name('api.unidades.update');
+        Route::put('/unidades/{unidade}/ativo', [UnidadeController::class, 'ativo'])->name('api.unidades.ativo');
 
         // Sincronizações e painel.
         Route::get('/sync-runs', [SyncRunController::class, 'index'])->name('api.sync-runs.index');

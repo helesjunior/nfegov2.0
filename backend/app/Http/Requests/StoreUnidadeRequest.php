@@ -3,6 +3,7 @@
 namespace App\Http\Requests;
 
 use App\Models\Unidade;
+use App\Support\TenantContext;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -22,6 +23,14 @@ class StoreUnidadeRequest extends FormRequest
     public function rules(): array
     {
         return [
+            // Super-admin em contexto nulo ("Todas") não tem tenant ativo: o
+            // corpo DEVE informar a entidade (nunca gravar unidade órfã). Com
+            // contexto ativo, o tenant_id vem do middleware.
+            'tenant_id' => [
+                TenantContext::id() === null ? 'required' : 'nullable',
+                'integer',
+                Rule::exists('tenants', 'id'),
+            ],
             'nome' => ['required', 'string', 'max:255'],
             'nome_resumido' => ['nullable', 'string', 'max:255'],
             'codigo_unidade' => ['nullable', 'string', 'max:255'],
@@ -41,6 +50,7 @@ class StoreUnidadeRequest extends FormRequest
     public function messages(): array
     {
         return [
+            'tenant_id.required' => 'Selecione a entidade da unidade.',
             'cnpj.unique' => 'Já existe uma unidade com este CNPJ nesta entidade.',
         ];
     }
