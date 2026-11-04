@@ -35,3 +35,6 @@ Thumbs.db
 .idea/
 .vscode/
 *.swp
+
+# --- Scratch de execução de planos (superpowers) ---
+/.superpowers/
