@@ -44,11 +44,19 @@ export function mensagemDeErro(erro: unknown): string {
 
 // ---- Tipos da API -----------------------------------------------------------
 
+export interface TenantResumo {
+  id: number
+  nome: string
+}
+
 export interface Usuario {
   id: number
   name: string
   email: string
   tenant_id: number | null
+  tenant_ativo: TenantResumo | null
+  tenants_disponiveis: TenantResumo[]
+  pode_todas: boolean
   papeis: string[]
   permissoes: string[]
   mfa_pendente: boolean
@@ -74,6 +82,17 @@ export const authApi = {
 
   async logout(): Promise<void> {
     await http.post('/logout')
+  },
+}
+
+// ---- Sessão / Tenant ativo --------------------------------------------------
+
+export const sessaoApi = {
+  async trocarTenant(tenantId: number | null): Promise<{ tenant_ativo: TenantResumo | null }> {
+    const { data } = await http.post<{ tenant_ativo: TenantResumo | null }>('/sessao/tenant', {
+      tenant_id: tenantId,
+    })
+    return data
   },
 }
 
@@ -124,6 +143,7 @@ export interface CertificadoResumo {
 
 export interface Unidade {
   id: number
+  tenant_id: number | null
   codigo_unidade: string | null
   nome: string
   nome_resumido: string | null
@@ -146,6 +166,7 @@ export interface NovaUnidade {
   uf: string
   tp_amb?: 1 | 2
   ativo?: boolean
+  tenant_id?: number
 }
 
 export const unidadesApi = {
@@ -156,8 +177,108 @@ export const unidadesApi = {
     return data
   },
 
+  async obter(id: number): Promise<Unidade> {
+    const { data } = await http.get<{ data: Unidade }>(`/unidades/${id}`)
+    return data.data
+  },
+
   async criar(payload: NovaUnidade): Promise<Unidade> {
     const { data } = await http.post<{ data: Unidade }>('/unidades', payload)
+    return data.data
+  },
+
+  async atualizar(id: number, payload: Partial<NovaUnidade>): Promise<Unidade> {
+    const { data } = await http.put<{ data: Unidade }>(`/unidades/${id}`, payload)
+    return data.data
+  },
+
+  async definirAtivo(id: number, ativo: boolean): Promise<Unidade> {
+    const { data } = await http.put<{ data: Unidade }>(`/unidades/${id}/ativo`, { ativo })
+    return data.data
+  },
+}
+
+// ---- Tenants (entidades) ----------------------------------------------------
+
+export interface Tenant {
+  id: number
+  nome: string
+  cnpj: string | null
+  ativo: boolean
+  created_at: string | null
+}
+
+export interface NovoTenant {
+  nome: string
+  cnpj?: string
+  ativo?: boolean
+}
+
+export const tenantsApi = {
+  async listar(perPage = 50, page = 1): Promise<Paginado<Tenant>> {
+    const { data } = await http.get<Paginado<Tenant>>('/tenants', {
+      params: { per_page: perPage, page },
+    })
+    return data
+  },
+
+  async criar(payload: NovoTenant): Promise<Tenant> {
+    const { data } = await http.post<{ data: Tenant }>('/tenants', payload)
+    return data.data
+  },
+
+  async atualizar(id: number, payload: Partial<NovoTenant>): Promise<Tenant> {
+    const { data } = await http.put<{ data: Tenant }>(`/tenants/${id}`, payload)
+    return data.data
+  },
+
+  async definirAtivo(id: number, ativo: boolean): Promise<Tenant> {
+    const { data } = await http.put<{ data: Tenant }>(`/tenants/${id}/ativo`, { ativo })
+    return data.data
+  },
+}
+
+// ---- Usuários (administração) -----------------------------------------------
+
+export interface UsuarioAdmin {
+  id: number
+  name: string
+  email: string
+  ativo: boolean
+  tenant_id: number | null
+  papeis: string[]
+  tenants: TenantResumo[]
+  created_at: string | null
+}
+
+export interface NovoUsuario {
+  name: string
+  email: string
+  password?: string
+  papel: string
+  tenants: number[]
+}
+
+export const usuariosApi = {
+  async listar(perPage = 50, page = 1): Promise<Paginado<UsuarioAdmin>> {
+    const { data } = await http.get<Paginado<UsuarioAdmin>>('/usuarios', {
+      params: { per_page: perPage, page },
+    })
+    return data
+  },
+
+  async criar(payload: NovoUsuario): Promise<UsuarioAdmin> {
+    const { data } = await http.post<{ data: UsuarioAdmin }>('/usuarios', payload)
+    return data.data
+  },
+
+  async atualizar(id: number, payload: Partial<NovoUsuario>): Promise<UsuarioAdmin> {
+    const { data } = await http.put<{ data: UsuarioAdmin }>(`/usuarios/${id}`, payload)
+    return data.data
+  },
+
+  async definirAtivo(id: number, ativo: boolean): Promise<UsuarioAdmin> {
+    const { data } = await http.put<{ data: UsuarioAdmin }>(`/usuarios/${id}/ativo`, { ativo })
     return data.data
   },
 }
