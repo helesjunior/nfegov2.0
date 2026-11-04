@@ -7,6 +7,7 @@ use App\Models\Nfe;
 use App\Models\SyncRun;
 use App\Models\Tenant;
 use App\Models\Unidade;
+use App\Models\User;
 use App\Domain\Sefaz\SefazClient;
 use App\Domain\Sefaz\SpedSefazClient;
 use App\Policies\CertificatePolicy;
@@ -14,6 +15,7 @@ use App\Policies\NfePolicy;
 use App\Policies\SyncRunPolicy;
 use App\Policies\TenantPolicy;
 use App\Policies\UnidadePolicy;
+use App\Policies\UserPolicy;
 use Illuminate\Foundation\Support\Providers\AuthServiceProvider as ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -32,6 +34,7 @@ class AppServiceProvider extends ServiceProvider
         Certificate::class => CertificatePolicy::class,
         SyncRun::class => SyncRunPolicy::class,
         Tenant::class => TenantPolicy::class,
+        User::class => UserPolicy::class,
     ];
 
     /**
