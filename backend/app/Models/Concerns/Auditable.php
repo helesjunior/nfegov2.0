@@ -23,6 +23,7 @@ trait Auditable
         string|int|null $entidadeId = null,
         ?User $user = null,
         ?Request $request = null,
+        ?int $tenantId = null,
     ): void {
         app(AuditLogger::class)->log(
             $user ?? $request?->user() ?? request()->user(),
@@ -31,6 +32,7 @@ trait Auditable
             $entidade,
             $entidadeId,
             $request ?? request(),
+            $tenantId,
         );
     }
 }
