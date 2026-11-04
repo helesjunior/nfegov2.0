@@ -5,14 +5,16 @@ import { mensagemDeErro, unidadesApi, type NovaUnidade, type Unidade } from '../
 import { formatarCnpj, rotularAmbiente } from '../../lib/format'
 
 /**
- * Lista de unidades gestoras da entidade + formulário de criação.
+ * Lista de unidades gestoras da entidade + criação/edição.
  *
  * A listagem é paginada (50 por página) e mostra o status do certificado de
- * cada unidade. Só quem tem `unidade.gerenciar` vê o formulário de criação.
+ * cada unidade. Cada linha permite editar a unidade ou ativá-la/desativá-la.
+ * A entidade (`tenant_id`) da unidade é fixa — nunca é editável aqui.
  */
 export function UnidadesPage() {
   const [pagina, setPagina] = useState(1)
   const [formAberto, setFormAberto] = useState(false)
+  const [editando, setEditando] = useState<Unidade | null>(null)
 
   const { data, isLoading, isError } = useQuery({
     queryKey: ['unidades', pagina],
@@ -23,16 +25,30 @@ export function UnidadesPage() {
     <div>
       <div className="pagina-topo">
         <h1>Unidades</h1>
-        <button type="button" className="botao" onClick={() => setFormAberto((v) => !v)}>
-          {formAberto ? 'Fechar' : 'Nova unidade'}
+        <button
+          type="button"
+          className="botao"
+          onClick={() => {
+            setEditando(null)
+            setFormAberto((v) => !v)
+          }}
+        >
+          {formAberto && !editando ? 'Fechar' : 'Nova unidade'}
         </button>
       </div>
 
       {formAberto && (
         <NovaUnidadeForm
-          onCriada={() => {
+          key={editando?.id ?? 'novo'}
+          unidadeEmEdicao={editando ?? undefined}
+          onConcluida={() => {
             setFormAberto(false)
+            setEditando(null)
             setPagina(1)
+          }}
+          onCancelar={() => {
+            setFormAberto(false)
+            setEditando(null)
           }}
         />
       )}
@@ -66,7 +82,27 @@ export function UnidadesPage() {
                     <StatusCertificado unidade={u} />
                   </td>
                   <td style={{ textAlign: 'right' }}>
-                    <Link to={`/unidades/${u.id}/certificado`}>Certificado</Link>
+                    <div
+                      style={{
+                        display: 'flex',
+                        gap: '0.5rem',
+                        justifyContent: 'flex-end',
+                        alignItems: 'center',
+                      }}
+                    >
+                      <Link to={`/unidades/${u.id}/certificado`}>Certificado</Link>
+                      <button
+                        type="button"
+                        className="botao botao--secundario"
+                        onClick={() => {
+                          setEditando(u)
+                          setFormAberto(true)
+                        }}
+                      >
+                        Editar
+                      </button>
+                      <BotaoAtivo unidade={u} />
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -121,22 +157,80 @@ function StatusCertificado({ unidade }: { unidade: Unidade }) {
   return <span className="selo selo--ok">{c.dias_restantes} dias</span>
 }
 
-/** Formulário de criação de unidade. */
-function NovaUnidadeForm({ onCriada }: { onCriada: () => void }) {
+/** Ação de ativar/desativar uma unidade, com confirmação antes da mudança. */
+function BotaoAtivo({ unidade }: { unidade: Unidade }) {
   const queryClient = useQueryClient()
-
-  const [nome, setNome] = useState('')
-  const [nomeResumido, setNomeResumido] = useState('')
-  const [cnpj, setCnpj] = useState('')
-  const [uf, setUf] = useState('')
-  const [tpAmb, setTpAmb] = useState<1 | 2>(2)
   const [erro, setErro] = useState<string | null>(null)
 
-  const criar = useMutation({
-    mutationFn: (payload: NovaUnidade) => unidadesApi.criar(payload),
+  const alternar = useMutation({
+    mutationFn: (ativo: boolean) => unidadesApi.definirAtivo(unidade.id, ativo),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['unidades'] })
-      onCriada()
+    },
+    onError: (e) => setErro(mensagemDeErro(e)),
+  })
+
+  function aoClicar() {
+    setErro(null)
+    const acao = unidade.ativo ? 'desativar' : 'ativar'
+    if (window.confirm(`Deseja ${acao} a unidade "${unidade.nome}"?`)) {
+      alternar.mutate(!unidade.ativo)
+    }
+  }
+
+  return (
+    <>
+      <button
+        type="button"
+        className="botao botao--secundario"
+        onClick={aoClicar}
+        disabled={alternar.isPending}
+      >
+        {unidade.ativo ? 'Desativar' : 'Ativar'}
+      </button>
+      {erro && (
+        <span className="alerta alerta--erro" role="alert">
+          {erro}
+        </span>
+      )}
+    </>
+  )
+}
+
+/**
+ * Formulário de criação/edição de unidade.
+ *
+ * Em modo edição (`unidadeEmEdicao`) pré-preenche os campos e chama `atualizar`.
+ * A entidade (`tenant_id`) da unidade é fixa e não muda: por isso o formulário
+ * nunca oferece um seletor de entidade, nem na criação nem na edição.
+ */
+function NovaUnidadeForm({
+  unidadeEmEdicao,
+  onConcluida,
+  onCancelar,
+}: {
+  unidadeEmEdicao?: Unidade
+  onConcluida: () => void
+  onCancelar: () => void
+}) {
+  const queryClient = useQueryClient()
+  const editando = Boolean(unidadeEmEdicao)
+
+  const [nome, setNome] = useState(unidadeEmEdicao?.nome ?? '')
+  const [nomeResumido, setNomeResumido] = useState(unidadeEmEdicao?.nome_resumido ?? '')
+  const [cnpj, setCnpj] = useState(unidadeEmEdicao?.cnpj ?? '')
+  const [uf, setUf] = useState(unidadeEmEdicao?.uf ?? '')
+  const [tpAmb, setTpAmb] = useState<1 | 2>(unidadeEmEdicao?.tp_amb === 1 ? 1 : 2)
+  const [erro, setErro] = useState<string | null>(null)
+
+  const salvar = useMutation({
+    mutationFn: (payload: NovaUnidade) =>
+      unidadeEmEdicao
+        ? unidadesApi.atualizar(unidadeEmEdicao.id, payload)
+        : unidadesApi.criar(payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['unidades'] })
+      onConcluida()
     },
     onError: (e) => setErro(mensagemDeErro(e)),
   })
@@ -144,7 +238,7 @@ function NovaUnidadeForm({ onCriada }: { onCriada: () => void }) {
   function aoEnviar(evento: FormEvent) {
     evento.preventDefault()
     setErro(null)
-    criar.mutate({
+    salvar.mutate({
       nome,
       nome_resumido: nomeResumido || undefined,
       cnpj: cnpj.replace(/\D/g, ''),
@@ -155,7 +249,7 @@ function NovaUnidadeForm({ onCriada }: { onCriada: () => void }) {
 
   return (
     <div className="card">
-      <h2 style={{ marginTop: 0 }}>Nova unidade</h2>
+      <h2 style={{ marginTop: 0 }}>{editando ? 'Editar unidade' : 'Nova unidade'}</h2>
 
       {erro && (
         <div className="alerta alerta--erro" role="alert">
@@ -213,9 +307,19 @@ function NovaUnidadeForm({ onCriada }: { onCriada: () => void }) {
           </select>
         </div>
 
-        <button type="submit" className="botao" disabled={criar.isPending}>
-          {criar.isPending ? 'Salvando…' : 'Salvar'}
+        <button type="submit" className="botao" disabled={salvar.isPending}>
+          {salvar.isPending ? 'Salvando…' : 'Salvar'}
         </button>
+        {editando && (
+          <button
+            type="button"
+            className="botao botao--secundario"
+            onClick={onCancelar}
+            disabled={salvar.isPending}
+          >
+            Cancelar
+          </button>
+        )}
       </form>
     </div>
   )
