@@ -262,3 +262,94 @@ export const dashboardApi = {
     return data
   },
 }
+
+// ---- NF-e -------------------------------------------------------------------
+
+export interface Nfe {
+  id: number
+  chave: string
+  numero: string | null
+  serie: string | null
+  modelo: string
+  unidade_id: number
+  emitente_cnpj: string | null
+  emitente_nome: string | null
+  dest_cnpj: string | null
+  valor_total: string | null
+  natureza_operacao: string | null
+  data_emissao: string | null
+  cstat: string | null
+  estado: string
+  emitente_proprio: boolean
+  tem_xml: boolean
+  xml_url: string | null
+  itens?: NfeItem[]
+  created_at: string | null
+}
+
+export interface NfeItem {
+  id: number
+  sequencial: number
+  descricao: string
+  cfop: string | null
+  unidade_medida: string | null
+  quantidade: string | null
+  valor_unitario: string | null
+  valor_total: string | null
+}
+
+export interface FiltrosNfe {
+  de?: string
+  ate?: string
+  unidade_id?: number
+  emitente_cnpj?: string
+  valor_min?: number
+  valor_max?: number
+  chave?: string
+  q?: string
+  per_page?: number
+  page?: number
+}
+
+export const nfeApi = {
+  async listar(filtros: FiltrosNfe = {}): Promise<Paginado<Nfe>> {
+    const { data } = await http.get<Paginado<Nfe>>('/nfes', { params: filtros })
+    return data
+  },
+
+  async obter(chave: string): Promise<Nfe> {
+    const { data } = await http.get<{ data: Nfe }>(`/nfes/${chave}`)
+    return data.data
+  },
+
+  async exportar(filtros: FiltrosNfe, formato: 'csv' | 'xlsx'): Promise<string> {
+    const { data } = await http.post<{ message: string }>('/nfes/export', { ...filtros, formato })
+    return data.message
+  },
+
+  async exportarXml(filtros: FiltrosNfe): Promise<string> {
+    const { data } = await http.post<{ message: string }>('/nfes/export-xml', filtros)
+    return data.message
+  },
+}
+
+// ---- Notificações -----------------------------------------------------------
+
+export interface Notificacao {
+  id: string
+  lida: boolean
+  criada_em: string | null
+  dados: { caminho?: string; formato?: string; total?: number }
+  url_download: string | null
+}
+
+export const notificacoesApi = {
+  async listar(): Promise<{ data: Notificacao[]; nao_lidas: number }> {
+    const { data } = await http.get<{ data: Notificacao[]; nao_lidas: number }>('/notifications')
+    return data
+  },
+
+  async marcarComoLida(id: string): Promise<void> {
+    await http.post(`/notifications/${id}/lida`)
+  },
+}

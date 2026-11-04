@@ -19,6 +19,7 @@ const ITENS: ItemMenu[] = [
   { para: '/nfes', rotulo: 'NF-e', permissoes: ['nfe.view'] },
   { para: '/unidades', rotulo: 'Unidades', permissoes: ['nfe.view'] },
   { para: '/sync', rotulo: 'Sincronizações', permissoes: ['nfe.view'] },
+  { para: '/notificacoes', rotulo: 'Notificações' },
 ]
 
 export function Sidebar({ permissoes }: { permissoes: string[] }) {

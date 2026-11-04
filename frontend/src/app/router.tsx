@@ -7,6 +7,9 @@ import { DashboardPage } from '../features/dashboard/DashboardPage'
 import { UnidadeCertificadoRoute } from '../features/certificados/UnidadeCertificadoRoute'
 import { UnidadesPage } from '../features/unidades/UnidadesPage'
 import { SyncPage } from '../features/sync/SyncPage'
+import { NfeListPage } from '../features/nfes/NfeListPage'
+import { NfeDetailPage } from '../features/nfes/NfeDetailPage'
+import { NotificacoesPage } from '../features/notificacoes/NotificacoesPage'
 
 /**
  * Guard de rota autenticada.
@@ -44,25 +47,15 @@ export const routes: RouteObject[] = [
     ),
     children: [
       { index: true, element: <DashboardPage /> },
-      { path: 'nfes', element: <Placeholder titulo="NF-e" /> },
+      { path: 'nfes', element: <NfeListPage /> },
+      { path: 'nfes/:chave', element: <NfeDetailPage /> },
       { path: 'unidades', element: <UnidadesPage /> },
       { path: 'unidades/:id/certificado', element: <UnidadeCertificadoRoute /> },
       { path: 'sync', element: <SyncPage /> },
+      { path: 'notificacoes', element: <NotificacoesPage /> },
     ],
   },
   { path: '*', element: <Navigate to="/" replace /> },
 ]
-
-/**
- * Placeholder das telas que chegam na próxima tarefa (lista/detalhe de NF-e).
- */
-function Placeholder({ titulo }: { titulo: string }) {
-  return (
-    <div className="card">
-      <h2 style={{ marginTop: 0 }}>{titulo}</h2>
-      <p className="shell__usuario">Esta tela será construída na próxima etapa.</p>
-    </div>
-  )
-}
 
 export const router = createBrowserRouter(routes)

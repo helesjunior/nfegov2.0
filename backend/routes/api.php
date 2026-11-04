@@ -4,8 +4,10 @@ use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\CertificateController;
 use App\Http\Controllers\Api\DashboardController;
 use App\Http\Controllers\Api\ExportController;
+use App\Http\Controllers\Api\ExportDownloadController;
 use App\Http\Controllers\Api\MfaController;
 use App\Http\Controllers\Api\NfeController;
+use App\Http\Controllers\Api\NotificationController;
 use App\Http\Controllers\Api\SyncRunController;
 use App\Http\Controllers\Api\UnidadeController;
 use Illuminate\Support\Facades\Route;
@@ -71,6 +73,16 @@ Route::middleware('web')->group(function () {
         // Sincronizações e painel.
         Route::get('/sync-runs', [SyncRunController::class, 'index'])->name('api.sync-runs.index');
         Route::get('/dashboard', DashboardController::class)->name('api.dashboard');
+
+        // Notificações do usuário (ex.: exportações prontas) e download do
+        // arquivo gerado. O download usa URL assinada e temporária.
+        Route::get('/notifications', [NotificationController::class, 'index'])
+            ->name('api.notifications.index');
+        Route::post('/notifications/{id}/lida', [NotificationController::class, 'marcarComoLida'])
+            ->name('api.notifications.lida');
+        Route::get('/exports/{arquivo}', ExportDownloadController::class)
+            ->middleware('signed')
+            ->name('api.exports.download');
     });
 
     // Operações SENSÍVEIS: exigem MFA recente (step-up).
