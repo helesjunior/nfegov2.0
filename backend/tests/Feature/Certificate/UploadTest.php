@@ -207,12 +207,43 @@ class UploadTest extends TestCase
         $this->assertArrayHasKey('cnpj', $dados);
         $this->assertArrayHasKey('titular', $dados);
         $this->assertArrayHasKey('valido_ate', $dados);
+        // Estado explícito de vencimento.
+        $this->assertArrayHasKey('expirado_em', $dados);
+        $this->assertArrayHasKey('foi_expirado', $dados);
+        $this->assertFalse($dados['foi_expirado']);
 
         // Nunca expõe segredo nem conteúdo do arquivo.
         $this->assertArrayNotHasKey('senha', $dados);
         $this->assertArrayNotHasKey('senha_encrypted', $dados);
         $this->assertArrayNotHasKey('arquivo_path', $dados);
         $this->assertStringNotContainsString('senha', $resp->getContent());
+    }
+
+    public function test_get_expoe_certificado_marcado_como_expirado(): void
+    {
+        $tenant = Tenant::factory()->create();
+        $u = $this->adminComMfa($tenant);
+        $unidade = Unidade::factory()->create(['tenant_id' => $tenant->id]);
+
+        $expirado = now()->subDay()->startOfSecond();
+
+        Certificate::factory()->create([
+            'tenant_id' => $tenant->id,
+            'unidade_id' => $unidade->id,
+            'cnpj' => $unidade->cnpj,
+            'valido_ate' => now()->subDay(),
+            'ativo' => true,
+            'expirado_em' => $expirado,
+        ]);
+
+        $resp = $this->actingAs($u)->getJson("/api/unidades/{$unidade->id}/certificado")
+            ->assertOk();
+
+        $dados = $resp->json('certificado');
+        $this->assertTrue($dados['foi_expirado']);
+        $this->assertNotNull($dados['expirado_em']);
+        // O vencido continua visível (não foi desativado).
+        $this->assertTrue($dados['ativo']);
     }
 
     public function test_nao_acessa_certificado_de_unidade_de_outro_tenant(): void

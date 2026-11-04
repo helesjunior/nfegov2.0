@@ -98,6 +98,8 @@ class CertificateController extends Controller
             'valido_ate' => $cert->valido_ate,
             'dias_restantes' => $cert->diasRestantes(),
             'vencido' => $cert->vencido(),
+            'expirado_em' => $cert->expirado_em,
+            'foi_expirado' => $cert->foiExpirado(),
             'ativo' => $cert->ativo,
         ];
     }

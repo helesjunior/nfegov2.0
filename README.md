@@ -132,6 +132,12 @@ reconsulta o download para obter o XML completo. Nenhuma outra manifestação é
 - A rotação exige **step-up de MFA** (janela de MFA recente, padrão 15 min).
 - Avisos de vencimento são enviados **apenas por e-mail** aos `admin-tenant`, nos marcos
   de 60/30/15/7/1 dias (`CheckCertificateExpiry`, diário às 07:00).
+- O vencimento também fica **explícito no banco**: o comando `certificate-expiry:mark`
+  (diário às 07:05) grava o carimbo `expirado_em` nos certificados **ativos** já vencidos.
+  Ele **não** desativa o certificado (`ativo` continua significando "certificado corrente
+  da unidade", usado pela rotação) — assim o vencido permanece visível no painel, nos
+  alertas e na tela da unidade, agora com o estado explícito. O carimbo é idempotente e
+  nunca reescreve uma marca já existente.
 
 ### Filas
 
