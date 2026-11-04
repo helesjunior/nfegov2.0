@@ -42,6 +42,9 @@ Route::middleware('web')->group(function () {
         Route::get('/me', [AuthController::class, 'me'])->name('api.me');
         Route::post('/logout', [AuthController::class, 'logout'])->name('api.logout');
 
+        Route::post('/sessao/tenant', [\App\Http\Controllers\Api\SessaoTenantController::class, 'update'])
+            ->name('api.sessao.tenant');
+
         Route::prefix('mfa')->group(function () {
             Route::post('/setup', [MfaController::class, 'setup'])->name('api.mfa.setup');
             Route::post('/confirm', [MfaController::class, 'confirm'])->name('api.mfa.confirm');

@@ -48,6 +48,16 @@ class AuthController extends Controller
         /** @var User $user */
         $user = Auth::user();
 
+        if (! (bool) ($user->ativo ?? true)) {
+            Auth::guard('web')->logout();
+            $request->session()->invalidate();
+            Auth::forgetGuards();
+
+            throw ValidationException::withMessages([
+                'email' => 'Usuário inativo. Procure o administrador.',
+            ]);
+        }
+
         return response()->json([
             'user' => $this->dadosUsuario($user),
         ]);
@@ -85,11 +95,20 @@ class AuthController extends Controller
         $twoFactor = app(\App\Services\TwoFactorService::class);
         $exigeMfa = $user->hasAnyRole(config('nfegov.mfa.papeis_obrigatorios', ['super-admin', 'admin-tenant']));
 
+        $resolver = app(\App\Services\TenantAtivoResolver::class);
+        $preferencia = request()->session()?->get('tenant_id');
+        $tenantAtivoId = $resolver->paraUsuario($user, $preferencia === null ? null : (int) $preferencia);
+        $tenantAtivo = $tenantAtivoId ? \App\Models\Tenant::find($tenantAtivoId) : null;
+        $disponiveis = $resolver->disponiveis($user)->map(fn ($t) => ['id' => $t->id, 'nome' => $t->nome]);
+
         return [
             'id' => $user->id,
             'name' => $user->name,
             'email' => $user->email,
             'tenant_id' => $user->tenant_id,
+            'tenant_ativo' => $tenantAtivo ? ['id' => $tenantAtivo->id, 'nome' => $tenantAtivo->nome] : null,
+            'tenants_disponiveis' => $disponiveis,
+            'pode_todas' => $resolver->podeTodas($user),
             'papeis' => $user->getRoleNames(),
             'permissoes' => $user->getAllPermissions()->pluck('name'),
             // Sinaliza ao SPA que o segundo fator precisa ser configurado.

@@ -43,6 +43,7 @@ class DispatchSyncNfeJob implements ShouldQueue
         // mascararia o vigente).
         $unidades = Unidade::withoutGlobalScopes()
             ->where('ativo', true)
+            ->whereIn('tenant_id', \App\Models\Tenant::where('ativo', true)->pluck('id'))
             ->whereExists(function ($q) {
                 $q->selectRaw('1')
                     ->from('certificates')
