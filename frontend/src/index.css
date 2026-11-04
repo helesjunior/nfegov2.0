@@ -248,6 +248,17 @@ a:hover {
   color: var(--cor-texto-suave);
 }
 
+.shell__entidade {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--esp-2);
+  font-size: 0.875rem;
+}
+
+.shell__entidade-rotulo {
+  color: var(--cor-texto-suave);
+}
+
 .shell__conteudo {
   padding: var(--esp-5);
   min-width: 0;

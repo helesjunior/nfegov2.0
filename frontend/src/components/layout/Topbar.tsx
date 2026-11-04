@@ -1,6 +1,7 @@
 import { useNavigate } from 'react-router-dom'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { authApi, type Usuario } from '../../lib/api'
+import { SeletorEntidade } from '../../features/sessao/SeletorEntidade'
 
 /**
  * Barra superior: identifica o usuário e oferece o logout.
@@ -22,6 +23,7 @@ export function Topbar({ usuario }: { usuario: Usuario }) {
 
   return (
     <header className="shell__topbar">
+      <SeletorEntidade />
       <div>
         <strong>{usuario.name}</strong>
         {papeis && <span className="shell__usuario"> · {papeis}</span>}
