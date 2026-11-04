@@ -242,7 +242,7 @@ export interface DashboardResumo {
     resumos: number
   }
   unidades: { total: number; ativas: number }
-  certificados: { vencendo_30_dias: number; vencidos: number }
+  certificados: { vencendo_30_dias: number; vencidos: number; expirados: number }
   sync: {
     ultimas: Array<{
       id: number

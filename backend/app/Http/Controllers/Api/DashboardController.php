@@ -51,7 +51,12 @@ class DashboardController extends Controller
                     ->where('valido_ate', '<', now())
                     ->count(),
                 // Explicítamente marcados pelo comando `certificate-expiry:mark`.
-                'expirados' => Certificate::whereNotNull('expirado_em')->count(),
+                // Filtra `ativo` como `vencidos`: um certificado marcado e
+                // depois ROTACIONADO (ativo=false, expirado_em preservado) não
+                // é mais o corrente e não deve inflar o painel.
+                'expirados' => Certificate::where('ativo', true)
+                    ->whereNotNull('expirado_em')
+                    ->count(),
             ],
             'sync' => [
                 'ultimas' => SyncRun::latest('iniciado_em')->limit(5)->get()->map(fn (SyncRun $r) => [

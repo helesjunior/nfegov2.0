@@ -69,6 +69,38 @@ class DashboardCertificateTest extends TestCase
         $this->assertSame(1, $resp->json('certificados.expirados'));
     }
 
+    public function test_dashboard_nao_conta_certificado_marcado_que_foi_rotacionado(): void
+    {
+        $tenant = Tenant::factory()->create();
+        $u = $this->admin($tenant);
+        $unidade = Unidade::factory()->create(['tenant_id' => $tenant->id]);
+
+        // Certificado que venceu, foi marcado e depois ROTACIONADO: a rotação
+        // o desativa (ativo=false) mas preserva expirado_em. Ele não é mais o
+        // certificado corrente, então não deve contar como "expirado" no painel
+        // (a tela da unidade também não o mostra: activeFor() filtra ativo=true).
+        Certificate::factory()->create([
+            'tenant_id' => $tenant->id,
+            'unidade_id' => $unidade->id,
+            'valido_ate' => now()->subDay(),
+            'ativo' => false,
+            'expirado_em' => now()->subDay(),
+        ]);
+
+        // Certificado corrente e vigente.
+        Certificate::factory()->create([
+            'tenant_id' => $tenant->id,
+            'unidade_id' => $unidade->id,
+            'valido_ate' => now()->addDays(30),
+            'ativo' => true,
+            'expirado_em' => null,
+        ]);
+
+        $resp = $this->actingAs($u)->getJson('/api/dashboard')->assertOk();
+
+        $this->assertSame(0, $resp->json('certificados.expirados'));
+    }
+
     public function test_dashboard_nao_conta_certificados_de_outro_tenant(): void
     {
         $a = Tenant::factory()->create();

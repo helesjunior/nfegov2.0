@@ -138,6 +138,10 @@ reconsulta o download para obter o XML completo. Nenhuma outra manifestação é
   da unidade", usado pela rotação) — assim o vencido permanece visível no painel, nos
   alertas e na tela da unidade, agora com o estado explícito. O carimbo é idempotente e
   nunca reescreve uma marca já existente.
+  Semântica: `foi_expirado` reflete o **carimbo** (`expirado_em`), gravado até ~24h depois do
+  vencimento real (o comando roda 1×/dia). Para decidir "está vencido agora?", use o campo
+  `vencido` (derivado de `valido_ate`); `foi_expirado=false` não garante "não vencido" na
+  janela entre o vencimento e o próximo ciclo do comando.
 
 ### Filas
 
