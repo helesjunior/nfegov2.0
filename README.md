@@ -163,6 +163,67 @@ notificado (banco + e-mail) e baixa o arquivo por uma **URL assinada e temporár
 Documentos de guarda legal: **nunca** são descartados nem sobrescritos. Ficam **em disco**
 (fora do banco — só o caminho é indexado) e cada download é auditado.
 
+## Administração
+
+O acesso é **multitenant**: cada usuário só enxerga os dados das entidades às quais está vinculado.
+O vínculo vive na tabela **`tenant_user`** (N:N) e é a **fonte de verdade**; `users.tenant_id`
+é mantido apenas por compatibilidade. Os papéis são globais (spatie/laravel-permission):
+
+| Papel | Escopo |
+|---|---|
+| `super-admin` | Administra a plataforma: CRUD de **Entidades**, acesso a **todas** as entidades e de todos os usuários |
+| `admin-tenant` | Administra a própria entidade: unidades, certificados e usuários vinculados a ela |
+| `operador` | Operação do dia a dia (consulta/exporta NF-e, dispara sync) |
+| `consulta` | Somente leitura de NF-e |
+
+> O papel `admin-demo`, criado pelo seed de demonstração, existe **apenas** para inspeção local
+> da interface (sem exigência de MFA) e **nunca** deve ser usado em produção.
+
+### Seletor de entidade
+
+No topo da SPA há um **seletor de entidade** que define o *tenant ativo* da sessão (gravado na
+sessão e refletido em `POST /api/sessao/tenant`):
+
+- **super-admin** pode escolher **"Todas as entidades"** (contexto nulo — sem filtro de tenant)
+  ou qualquer entidade **ativa**;
+- **demais usuários** só veem (e só podem selecionar) as entidades às quais estão vinculados.
+
+Regras de disponibilidade:
+
+- uma entidade **inativa** **não** aparece no seletor e **não** pode ser selecionada (tentar
+  selecioná-la resulta em erro de validação); ela também **não** conta como vínculo;
+- um usuário **sem vínculo ativo** (e que não seja super-admin) recebe **403** ao navegar
+  ("Usuário sem entidade vinculada"), nunca um contexto nulo;
+- a sessão guarda uma *preferência* de entidade; a cada requisição ela é revalidada — se a
+  preferência deixar de ser acessível, o tenant ativo cai para o primeiro vínculo ativo.
+
+### Entidades (tenants) — só super-admin
+
+Tela **Entidades** (visível apenas com `pode_todas`): listar, criar, editar e ativar/desativar.
+A criação exige **MFA confirmado** (papel `super-admin`). Desativar uma entidade a torna
+indisponível no seletor e para seus vínculos; não apaga dados.
+
+### Usuários — papel global + múltiplos vínculos
+
+Tela **Usuários**: listar, criar, editar e ativar/desativar. Um usuário tem **um papel global** e
+**um ou mais vínculos** com entidades:
+
+- `super-admin` cria/atribui **qualquer** papel, inclusive `super-admin`, e vincula a qualquer entidade;
+- `admin-tenant` só cria usuários com papéis **não**-super-admin e **apenas** vinculados às suas
+  próprias entidades (403 caso contrário);
+- listagem: um super-admin com contexto **"Todas"** vê todos os usuários; com uma entidade ativa
+  (ou sendo admin-tenant) vê apenas os usuários vinculados àquela entidade;
+- **anti-lockout:** ninguém altera a própria conta por esta tela (403) — evita auto-promoção.
+
+Um usuário **inativo** **não** consegue logar (ver `POST /api/login`) e, se a sessão já estava
+aberta, ela **cai na próxima requisição** (`SetTenantContext` responde 403 "Usuário inativo").
+
+### Unidades — edição e desativação
+
+Na tela da unidade é possível editar os dados cadastrais e **ativar/desativar**. A **entidade
+(`tenant_id`) nunca muda** na edição — a unidade pertence à entidade em que foi criada; editar
+não oferece (nem aceita) troca de entidade. Uma unidade **inativa** não é sincronizada com a SEFAZ.
+
 ## Variáveis de ambiente
 
 Além das chaves padrão do Laravel, o NFeGov lê as seguintes (`config/nfegov.php`):
@@ -233,6 +294,12 @@ docker compose exec app php tools/seed_demo.php      # tenant, unidade, usuário
 docker compose exec app php tools/seed_nfe_demo.php  # uma NF-e de exemplo
 ```
 
+O `seed_demo.php` cria a entidade, uma unidade, os usuários vinculados
+(`admin@agu.gov.br`, `operador@agu.gov.br`, `admin.semmfa@agu.gov.br`) e um
+**super-admin** de demonstração (`superadmin@agu.gov.br`, `tenant_id = null`, sem vínculo — usa
+"Todas" no seletor), com MFA já confirmado. Senha de todos: `senha123`. O script imprime as
+credenciais e o segredo TOTP do super-admin (útil para configurar o app autenticador).
+
 ## Referência da API
 
 Todas as rotas vivem sob `/api`, com autenticação por **Sanctum** (cookie de sessão, SPA
@@ -241,7 +308,8 @@ same-origin) e escopo de tenant por usuário autenticado.
 | Método | Rota | Descrição |
 |---|---|---|
 | `POST` | `/api/login` | Autenticação (etapa 1) |
-| `GET` | `/api/me` | Usuário atual e permissões |
+| `GET` | `/api/me` | Usuário atual, papéis/permissões, tenant ativo e entidades disponíveis |
+| `POST` | `/api/sessao/tenant` | Define o tenant ativo da sessão (seletor de entidade) |
 | `POST` | `/api/mfa/setup` · `/confirm` · `/verify` | Configuração e step-up do TOTP |
 | `GET` | `/api/nfes` | Lista (filtros: período, unidade, emitente, valor, chave, busca) |
 | `GET` | `/api/nfes/{chave}` | Detalhe com itens e link assinado do XML |
@@ -251,6 +319,15 @@ same-origin) e escopo de tenant por usuário autenticado.
 | `GET` | `/api/notifications` | Notificações do usuário (exportações prontas) |
 | `GET` | `/api/exports/{arquivo}` | Download (URL assinada) |
 | `GET` | `/api/unidades` · `/api/unidades/{id}/certificado` | Unidades e certificado |
+| `POST` | `/api/unidades` | Cria unidade (entidade vem do tenant ativo) |
+| `PUT` | `/api/unidades/{id}` | Edita dados da unidade (entidade **não** muda) |
+| `PUT` | `/api/unidades/{id}/ativo` | Ativa/desativa a unidade |
+| `GET` · `POST` | `/api/tenants` | Entidades (listar/criar — só super-admin) |
+| `GET` · `PUT` | `/api/tenants/{id}` | Detalha/edita entidade (só super-admin) |
+| `PUT` | `/api/tenants/{id}/ativo` | Ativa/desativa entidade (só super-admin) |
+| `GET` · `POST` | `/api/usuarios` | Usuários (listar/criar — papel global + vínculos N:N) |
+| `PUT` | `/api/usuarios/{id}` | Edita usuário (papel e vínculos; não altera a própria conta) |
+| `PUT` | `/api/usuarios/{id}/ativo` | Ativa/desativa usuário |
 | `GET` | `/api/sync-runs` · `/api/dashboard` | Histórico de sync e painel |
 | `GET` | `/horizon` | Painel do Horizon (restrito) |
 
