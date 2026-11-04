@@ -37,6 +37,7 @@ export function TenantsPage() {
 
       {formAberto && (
         <TenantForm
+          key={editando?.id ?? 'novo'}
           tenant={editando}
           onConcluido={() => {
             setFormAberto(false)
