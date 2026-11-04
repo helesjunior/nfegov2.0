@@ -6,11 +6,15 @@ import { NavLink } from 'react-router-dom'
  * Os itens são filtrados por permissão: cada link declara a permissão exigida
  * (nomes iguais aos do backend, ex.: `nfe.view`) e só aparece se o usuário
  * tiver alguma delas. Isso espelha o RBAC do servidor no cliente.
+ *
+ * Itens marcados com `soSuperAdmin` só aparecem quando `podeTodas` é verdadeiro
+ * (super-admin, ex.: administração de entidades).
  */
 export interface ItemMenu {
   para: string
   rotulo: string
   permissoes?: string[]
+  soSuperAdmin?: boolean
   exato?: boolean
 }
 
@@ -20,11 +24,20 @@ const ITENS: ItemMenu[] = [
   { para: '/unidades', rotulo: 'Unidades', permissoes: ['nfe.view'] },
   { para: '/sync', rotulo: 'Sincronizações', permissoes: ['nfe.view'] },
   { para: '/notificacoes', rotulo: 'Notificações' },
+  { para: '/entidades', rotulo: 'Entidades', soSuperAdmin: true },
 ]
 
-export function Sidebar({ permissoes }: { permissoes: string[] }) {
+export function Sidebar({
+  permissoes,
+  podeTodas = false,
+}: {
+  permissoes: string[]
+  podeTodas?: boolean
+}) {
   const visiveis = ITENS.filter(
-    (item) => !item.permissoes || item.permissoes.some((p) => permissoes.includes(p)),
+    (item) =>
+      (!item.permissoes || item.permissoes.some((p) => permissoes.includes(p))) &&
+      (!item.soSuperAdmin || podeTodas),
   )
 
   return (

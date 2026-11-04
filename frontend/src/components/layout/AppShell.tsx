@@ -16,7 +16,7 @@ export function AppShell() {
 
   return (
     <div className="shell">
-      <Sidebar permissoes={usuario.permissoes} />
+      <Sidebar permissoes={usuario.permissoes} podeTodas={usuario.pode_todas} />
       <div className="shell__principal">
         <Topbar usuario={usuario} />
         <main className="shell__conteudo">
