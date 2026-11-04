@@ -58,6 +58,12 @@ class AppServiceProvider extends ServiceProvider
         // `{usuario}` do CRUD de usuários resolve SEM o global scope de tenant:
         // o escopo de acesso é N:N e é validado na UserPolicy (que permite ao
         // super-admin alcançar qualquer usuário e barra o admin-tenant alheio).
-        Route::bind('usuario', fn (string $valor) => User::withoutGlobalScopes()->findOrFail($valor));
+        // Id não numérico nunca chega ao banco (evita 500 do pgsql / 22P02):
+        // devolve 404, preservando a autorização (não vaza existência).
+        Route::bind('usuario', function (string $valor) {
+            abort_unless(ctype_digit($valor), 404);
+
+            return User::withoutGlobalScopes()->findOrFail($valor);
+        });
     }
 }

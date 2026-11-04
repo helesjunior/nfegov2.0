@@ -186,4 +186,36 @@ class UserApiTest extends TestCase
             'papel' => 'operador', 'tenants' => [$a->id],
         ])->assertStatus(422);
     }
+
+    public function test_admin_tenant_nao_edita_usuario_de_outro_tenant(): void
+    {
+        $a = Tenant::factory()->create(['ativo' => true]);
+        $b = Tenant::factory()->create(['ativo' => true]);
+
+        // Alvo vinculado SOMENTE a B; o admin autenticado é de A.
+        $alvo = User::factory()->comTenant($b)->create();
+        $alvo->assignRole('operador');
+
+        // Payload válido: só a autorização (policy) deve barrar o cross-tenant.
+        $this->actingAs($this->adminTenant($a))->putJson("/api/usuarios/{$alvo->id}", [
+            'name' => 'Invadido', 'email' => $alvo->email, 'papel' => 'consulta', 'tenants' => [$b->id],
+        ])->assertForbidden();
+
+        // Garante que nada foi alterado.
+        $alvo->refresh();
+        $this->assertTrue($alvo->hasRole('operador'));
+        $this->assertSame([$b->id], $alvo->tenants()->pluck('tenants.id')->map(fn ($i) => (int) $i)->all());
+    }
+
+    public function test_id_malformado_retorna_404(): void
+    {
+        $a = Tenant::factory()->create(['ativo' => true]);
+
+        $this->actingAs($this->adminTenant($a))->putJson('/api/usuarios/abc', [
+            'name' => 'X', 'email' => 'x@x.test', 'papel' => 'consulta', 'tenants' => [$a->id],
+        ])->assertNotFound();
+
+        $this->actingAs($this->adminTenant($a))->putJson('/api/usuarios/abc/ativo', ['ativo' => false])
+            ->assertNotFound();
+    }
 }
