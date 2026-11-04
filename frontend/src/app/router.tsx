@@ -11,6 +11,7 @@ import { NfeListPage } from '../features/nfes/NfeListPage'
 import { NfeDetailPage } from '../features/nfes/NfeDetailPage'
 import { NotificacoesPage } from '../features/notificacoes/NotificacoesPage'
 import { TenantsPage } from '../features/tenants/TenantsPage'
+import { UsuariosPage } from '../features/usuarios/UsuariosPage'
 
 /**
  * Guard de rota autenticada.
@@ -54,6 +55,7 @@ export const routes: RouteObject[] = [
       { path: 'unidades/:id/certificado', element: <UnidadeCertificadoRoute /> },
       { path: 'sync', element: <SyncPage /> },
       { path: 'notificacoes', element: <NotificacoesPage /> },
+      { path: 'usuarios', element: <UsuariosPage /> },
       { path: 'entidades', element: <TenantsPage /> },
     ],
   },

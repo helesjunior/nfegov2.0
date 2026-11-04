@@ -24,6 +24,7 @@ const ITENS: ItemMenu[] = [
   { para: '/unidades', rotulo: 'Unidades', permissoes: ['nfe.view'] },
   { para: '/sync', rotulo: 'Sincronizações', permissoes: ['nfe.view'] },
   { para: '/notificacoes', rotulo: 'Notificações' },
+  { para: '/usuarios', rotulo: 'Usuários', permissoes: ['usuario.gerenciar'] },
   { para: '/entidades', rotulo: 'Entidades', soSuperAdmin: true },
 ]
 
