@@ -17,6 +17,7 @@ use App\Policies\TenantPolicy;
 use App\Policies\UnidadePolicy;
 use App\Policies\UserPolicy;
 use Illuminate\Foundation\Support\Providers\AuthServiceProvider as ServiceProvider;
+use Illuminate\Support\Facades\Route;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -53,5 +54,10 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         $this->registerPolicies();
+
+        // `{usuario}` do CRUD de usuários resolve SEM o global scope de tenant:
+        // o escopo de acesso é N:N e é validado na UserPolicy (que permite ao
+        // super-admin alcançar qualquer usuário e barra o admin-tenant alheio).
+        Route::bind('usuario', fn (string $valor) => User::withoutGlobalScopes()->findOrFail($valor));
     }
 }

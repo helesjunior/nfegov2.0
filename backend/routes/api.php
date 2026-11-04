@@ -86,6 +86,12 @@ Route::middleware('web')->group(function () {
         Route::get('/exports/{arquivo}', ExportDownloadController::class)
             ->middleware('signed')
             ->name('api.exports.download');
+
+        // Usuários (gestão). Escopo N:N resolvido no controller/policy.
+        Route::get('/usuarios', [\App\Http\Controllers\Api\UserController::class, 'index'])->name('api.usuarios.index');
+        Route::post('/usuarios', [\App\Http\Controllers\Api\UserController::class, 'store'])->name('api.usuarios.store');
+        Route::put('/usuarios/{usuario}', [\App\Http\Controllers\Api\UserController::class, 'update'])->name('api.usuarios.update');
+        Route::put('/usuarios/{usuario}/ativo', [\App\Http\Controllers\Api\UserController::class, 'ativo'])->name('api.usuarios.ativo');
     });
 
     // Operações SENSÍVEIS: exigem MFA recente (step-up).
