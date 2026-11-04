@@ -119,4 +119,18 @@ class UnidadeEditApiTest extends TestCase
 
         $this->assertDatabaseHas('unidades', ['tenant_id' => $t->id, 'cnpj' => '11222333000181']);
     }
+
+    public function test_admin_tenant_nao_cria_unidade_em_outro_tenant(): void
+    {
+        $a = Tenant::factory()->create();
+        $b = Tenant::factory()->create();
+
+        // admin-tenant de A tenta criar unidade dentro de B: o tenant_id do
+        // corpo é divergente do ativo ⇒ 422 (nunca grava em B).
+        $this->actingAs($this->admin($a))->postJson('/api/unidades', [
+            'nome' => 'Invasora', 'cnpj' => '11222333000181', 'uf' => 'SP', 'tenant_id' => $b->id,
+        ])->assertStatus(422);
+
+        $this->assertDatabaseMissing('unidades', ['tenant_id' => $b->id]);
+    }
 }

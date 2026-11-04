@@ -22,15 +22,17 @@ class StoreUnidadeRequest extends FormRequest
 
     public function rules(): array
     {
+        $contexto = TenantContext::id();
+
         return [
             // Super-admin em contexto nulo ("Todas") não tem tenant ativo: o
             // corpo DEVE informar a entidade (nunca gravar unidade órfã). Com
-            // contexto ativo, o tenant_id vem do middleware.
-            'tenant_id' => [
-                TenantContext::id() === null ? 'required' : 'nullable',
-                'integer',
-                Rule::exists('tenants', 'id'),
-            ],
+            // contexto ativo, o tenant_id vem do middleware e um valor
+            // divergente no corpo é rejeitado (não se cria unidade em outro
+            // tenant).
+            'tenant_id' => $contexto === null
+                ? ['required', 'integer', Rule::exists('tenants', 'id')]
+                : ['nullable', 'integer', Rule::in([$contexto])],
             'nome' => ['required', 'string', 'max:255'],
             'nome_resumido' => ['nullable', 'string', 'max:255'],
             'codigo_unidade' => ['nullable', 'string', 'max:255'],
