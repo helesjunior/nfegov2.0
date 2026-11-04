@@ -93,4 +93,13 @@ Route::middleware('web')->group(function () {
         Route::post('/unidades/{unidade}/certificado', [CertificateController::class, 'store'])
             ->name('api.unidades.certificado.store');
     });
+
+    // Administração de plataforma: Entidades (só super-admin, MFA confirmado).
+    Route::middleware(['auth:sanctum', 'mfa'])->group(function () {
+        Route::get('/tenants', [\App\Http\Controllers\Api\TenantController::class, 'index'])->name('api.tenants.index');
+        Route::post('/tenants', [\App\Http\Controllers\Api\TenantController::class, 'store'])->name('api.tenants.store');
+        Route::get('/tenants/{tenant}', [\App\Http\Controllers\Api\TenantController::class, 'show'])->name('api.tenants.show');
+        Route::put('/tenants/{tenant}', [\App\Http\Controllers\Api\TenantController::class, 'update'])->name('api.tenants.update');
+        Route::put('/tenants/{tenant}/ativo', [\App\Http\Controllers\Api\TenantController::class, 'ativo'])->name('api.tenants.ativo');
+    });
 });
