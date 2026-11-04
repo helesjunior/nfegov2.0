@@ -23,7 +23,7 @@ class UnidadeApiTest extends TestCase
 
     private function usuario(Tenant $tenant, string $papel): User
     {
-        $u = User::factory()->create(['tenant_id' => $tenant->id]);
+        $u = User::factory()->comTenant($tenant)->create();
         $u->assignRole($papel);
 
         // Papéis administrativos exigem MFA confirmado (middleware `mfa`).

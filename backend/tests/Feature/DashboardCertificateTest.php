@@ -28,7 +28,7 @@ class DashboardCertificateTest extends TestCase
 
     private function admin(Tenant $tenant): User
     {
-        $u = User::factory()->create(['tenant_id' => $tenant->id]);
+        $u = User::factory()->comTenant($tenant)->create();
         $u->assignRole('admin-tenant');
         // O papel admin-tenant exige MFA confirmado (middleware `mfa`).
         $u->forceFill([

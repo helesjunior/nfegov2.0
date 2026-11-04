@@ -65,7 +65,7 @@ class SyncFlowTest extends TestCase
             'ativo' => true,
         ]);
 
-        $this->operador = User::factory()->create(['tenant_id' => $this->tenant->id]);
+        $this->operador = User::factory()->comTenant($this->tenant)->create();
         $this->operador->assignRole('operador');
     }
 
@@ -77,7 +77,7 @@ class SyncFlowTest extends TestCase
      */
     private function enviarCertificado(): void
     {
-        $admin = User::factory()->create(['tenant_id' => $this->tenant->id]);
+        $admin = User::factory()->comTenant($this->tenant)->create();
         $admin->assignRole('admin-tenant');
         $admin->forceFill([
             'two_factor_secret' => app(\App\Services\TwoFactorService::class)->gerarSegredo(),

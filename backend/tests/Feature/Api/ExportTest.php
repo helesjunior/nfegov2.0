@@ -32,7 +32,7 @@ class ExportTest extends TestCase
 
     private function operador(Tenant $tenant): User
     {
-        $u = User::factory()->create(['tenant_id' => $tenant->id]);
+        $u = User::factory()->comTenant($tenant)->create();
         $u->assignRole('operador');
 
         return $u;
@@ -148,7 +148,7 @@ class ExportTest extends TestCase
     public function test_usuario_sem_permissao_nao_exporta(): void
     {
         $tenant = Tenant::factory()->create();
-        $semPapel = User::factory()->create(['tenant_id' => $tenant->id]);
+        $semPapel = User::factory()->comTenant($tenant)->create();
 
         $this->actingAs($semPapel)
             ->postJson('/api/nfes/export', ['formato' => 'csv'])

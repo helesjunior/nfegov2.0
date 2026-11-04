@@ -31,7 +31,7 @@ class AuditTest extends TestCase
 
     private function adminComMfa(Tenant $tenant): User
     {
-        $u = User::factory()->create(['tenant_id' => $tenant->id]);
+        $u = User::factory()->comTenant($tenant)->create();
         $u->assignRole('admin-tenant');
         $u->forceFill([
             'two_factor_secret' => app(\App\Services\TwoFactorService::class)->gerarSegredo(),
@@ -44,7 +44,7 @@ class AuditTest extends TestCase
 
     private function operador(Tenant $tenant): User
     {
-        $u = User::factory()->create(['tenant_id' => $tenant->id]);
+        $u = User::factory()->comTenant($tenant)->create();
         $u->assignRole('operador');
 
         return $u;

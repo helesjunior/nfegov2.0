@@ -31,7 +31,7 @@ class NfeApiTest extends TestCase
 
     private function usuarioDoTenant(Tenant $tenant, string $papel = 'operador'): User
     {
-        $u = User::factory()->create(['tenant_id' => $tenant->id]);
+        $u = User::factory()->comTenant($tenant)->create();
         $u->assignRole($papel);
 
         return $u;
@@ -177,7 +177,7 @@ class NfeApiTest extends TestCase
     {
         $tenant = Tenant::factory()->create();
 
-        $semPapel = User::factory()->create(['tenant_id' => $tenant->id]);
+        $semPapel = User::factory()->comTenant($tenant)->create();
 
         $this->actingAs($semPapel)->getJson('/api/nfes')->assertForbidden();
     }

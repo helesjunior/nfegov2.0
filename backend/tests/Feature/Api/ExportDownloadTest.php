@@ -41,6 +41,7 @@ class ExportDownloadTest extends TestCase
             'tenant_id' => $this->tenant->id,
         ]);
         $this->operador->assignRole('operador');
+        $this->operador->tenants()->syncWithoutDetaching([$this->tenant->id]);
     }
 
     private function ativarTenant(): void

@@ -32,8 +32,7 @@ class MfaTest extends TestCase
     {
         $tenant = Tenant::factory()->create();
 
-        $u = User::factory()->create([
-            'tenant_id' => $tenant->id,
+        $u = User::factory()->comTenant($tenant)->create([
             'password' => Hash::make($senha),
         ]);
         $u->assignRole($papeis);

@@ -35,7 +35,7 @@ class UploadTest extends TestCase
      */
     private function adminComMfa(Tenant $tenant): User
     {
-        $u = User::factory()->create(['tenant_id' => $tenant->id]);
+        $u = User::factory()->comTenant($tenant)->create();
         $u->assignRole('admin-tenant');
         $u->forceFill([
             'two_factor_secret' => app(\App\Services\TwoFactorService::class)->gerarSegredo(),
@@ -261,7 +261,7 @@ class UploadTest extends TestCase
     public function test_operador_nao_pode_enviar_certificado(): void
     {
         $tenant = Tenant::factory()->create();
-        $u = User::factory()->create(['tenant_id' => $tenant->id]);
+        $u = User::factory()->comTenant($tenant)->create();
         $u->assignRole('operador');
 
         $unidade = Unidade::factory()->create([
