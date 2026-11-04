@@ -36,6 +36,19 @@ class AuditTenantTest extends TestCase
         $this->assertSame($explicito->id, (int) $log->tenant_id);
     }
 
+    public function test_auditoria_contexto_vence_tenant_nao_nulo_do_usuario(): void
+    {
+        $tenantDoUsuario = Tenant::factory()->create();
+        $tenantDoContexto = Tenant::factory()->create();
+        $u = User::factory()->comTenant($tenantDoUsuario)->create();
+
+        TenantContext::set($tenantDoContexto->id);
+        $log = app(AuditLogger::class)->log($u, 'teste.acao');
+        TenantContext::clear();
+
+        $this->assertSame($tenantDoContexto->id, (int) $log->tenant_id);
+    }
+
     public function test_auditoria_sem_contexto_cai_no_tenant_do_usuario(): void
     {
         $tenant = Tenant::factory()->create();
