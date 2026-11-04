@@ -31,6 +31,7 @@ class Certificate extends Model
         'valido_de' => 'datetime',
         'valido_ate' => 'datetime',
         'substituido_em' => 'datetime',
+        'expirado_em' => 'datetime',
     ];
 
     public function tenant()
@@ -65,5 +66,17 @@ class Certificate extends Model
     public function vencido(): bool
     {
         return $this->valido_ate->isPast();
+    }
+
+    /**
+     * O certificado já foi marcado como expirado pelo comando
+     * `certificate-expiry:mark` (`expirado_em` preenchido).
+     *
+     * Independe de `ativo`: um certificado vencido continua `ativo` para
+     * que a operação o veja, e ganha o carimbo explícito de vencimento.
+     */
+    public function foiExpirado(): bool
+    {
+        return $this->expirado_em !== null;
     }
 }
