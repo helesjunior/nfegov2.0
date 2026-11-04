@@ -105,6 +105,20 @@ por IP, e todos os tenants compartilham a mesma saída.
 Cada execução fica registrada em `sync_runs` (status, NSU inicial/final, contagem de
 documentos e erro), visível na aba **Sincronizações** da SPA.
 
+**Sincronização só com certificado vigente.** Uma unidade cujo certificado e-CNPJ
+esteja vencido (ou ausente) **não** consulta a SEFAZ: consultar com certificado inválido
+consome NSU e é rejeitado — exatamente o caminho do bloqueio por "consumo indevido". A regra
+é defendida em três camadas:
+
+1. o `DispatchSyncNfeJob` **não enfileira** unidades sem certificado ativo vigente;
+2. o `SyncNfeJob` **revalida** antes de executar (a fila pode envelhecer) e registra a
+   execução como `bloqueado` — com o motivo — **sem tocar a SEFAZ**;
+3. o `ToolsFactory` recusa montar o cliente com certificado vencido, cobrindo chamadas
+   manuais fora dos jobs.
+
+Para retomar a recepção de uma unidade, rotacione o certificado (tela da unidade); a
+próxima execução do scheduler volta a sincronizá-la automaticamente.
+
 ### Manifestação do destinatário
 
 Ao receber um `resNFe` (resumo), o sistema dá **ciência da operação** automaticamente e

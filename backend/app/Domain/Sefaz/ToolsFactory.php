@@ -38,6 +38,15 @@ class ToolsFactory
             );
         }
 
+        // Última linha de defesa: nunca montar o Tools com certificado vencido.
+        // Sem isto, a chamada seguiria para a SEFAZ, consumiria NSU e seria
+        // rejeitada — o caminho do bloqueio por "consumo indevido" (cStat 656).
+        if ($certificate->valido_ate !== null && $certificate->valido_ate->isPast()) {
+            throw new RuntimeException(
+                "O certificado e-CNPJ da unidade {$unidade->id} está vencido; sincronização suspensa."
+            );
+        }
+
         $spedCertificate = $this->loader->load($certificate);
 
         $tools = new Tools($this->config->json($unidade), $spedCertificate);

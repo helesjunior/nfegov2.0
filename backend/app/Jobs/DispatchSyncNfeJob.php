@@ -33,7 +33,24 @@ class DispatchSyncNfeJob implements ShouldQueue
             return;
         }
 
-        $unidades = Unidade::withoutGlobalScopes()->where('ativo', true)->get();
+        // Somente unidades ATIVAS e com certificado e-CNPJ VIGENTE. Consultar
+        // a SEFAZ com certificado vencido consome NSU e leva à rejeição —
+        // exatamente o caminho do bloqueio por "consumo indevido" (cStat 656).
+        //
+        // Filtramos pela tabela `certificates` diretamente (e não pela relação
+        // `certificate()`, que usa `latestOfMany()` e escolheria o de maior id
+        // ANTES de aplicar `ativo`/validade — um certificado inativo mais novo
+        // mascararia o vigente).
+        $unidades = Unidade::withoutGlobalScopes()
+            ->where('ativo', true)
+            ->whereExists(function ($q) {
+                $q->selectRaw('1')
+                    ->from('certificates')
+                    ->whereColumn('certificates.unidade_id', 'unidades.id')
+                    ->where('certificates.ativo', true)
+                    ->where('certificates.valido_ate', '>', now());
+            })
+            ->get();
 
         foreach ($unidades as $unidade) {
             $slot = $guard->slotPara($unidade);

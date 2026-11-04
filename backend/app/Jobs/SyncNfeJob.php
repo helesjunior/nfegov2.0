@@ -47,6 +47,23 @@ class SyncNfeJob implements ShouldQueue, ShouldBeUnique
         }
 
         TenantContext::runAs($unidade->tenant_id, function () use ($unidade, $distDfe, $guard) {
+            // Certificado vencido/ausente: NÃO toca a SEFAZ. Consultar com
+            // certificado inválido consome NSU e leva à rejeição (caminho do
+            // cStat 656). Revalidamos aqui porque a fila pode envelhecer entre
+            // o agendamento e a execução.
+            if (! $this->certificadoVigente($unidade)) {
+                SyncRun::create([
+                    'tenant_id' => $unidade->tenant_id,
+                    'unidade_id' => $unidade->id,
+                    'iniciado_em' => now(),
+                    'finalizado_em' => now(),
+                    'status' => SyncRun::STATUS_BLOQUEADO,
+                    'erro' => 'Certificado e-CNPJ vencido ou ausente.',
+                ]);
+
+                return;
+            }
+
             // Circuit breaker aberto: nem tenta.
             if ($guard->isOpen()) {
                 SyncRun::create([
@@ -80,5 +97,26 @@ class SyncNfeJob implements ShouldQueue, ShouldBeUnique
                 throw $e;
             }
         });
+    }
+
+    /**
+     * A unidade possui certificado e-CNPJ ativo e VIGENTE?
+     *
+     * Considera `valido_ate` no futuro. Um certificado sem validade conhecida
+     * (`valido_ate` nulo) é tratado como não-vigente: é mais seguro falhar
+     * fechado do que consultar a SEFAZ com dados incompletos.
+     */
+    private function certificadoVigente(Unidade $unidade): bool
+    {
+        // Buscamos o certificado ATIVO mais recente (não o de maior id global):
+        // um certificado inativo mais novo não pode mascarar o vigente ativo.
+        $certificado = $unidade->certificates()
+            ->where('ativo', true)
+            ->latest('id')
+            ->first();
+
+        return $certificado !== null
+            && $certificado->valido_ate !== null
+            && $certificado->valido_ate->isFuture();
     }
 }
