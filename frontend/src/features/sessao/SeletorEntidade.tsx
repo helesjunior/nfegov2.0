@@ -21,7 +21,10 @@ export function SeletorEntidade() {
   async function trocar(valor: string) {
     const tenantId = valor === '' ? null : Number(valor)
     await sessaoApi.trocarTenant(tenantId)
-    queryClient.clear()
+    // Invalida as queries ativas para revisitar o novo tenant. NÃO usamos
+    // `queryClient.clear()`: ele removeria a própria query da sessão, deixando
+    // a recarga do `/me` sem efeito (o seletor não refletiria a nova entidade).
+    await queryClient.invalidateQueries()
     await recarregar()
   }
 

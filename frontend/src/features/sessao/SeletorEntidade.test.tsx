@@ -2,57 +2,90 @@ import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { SessionProvider } from '../auth/session'
+
+/**
+ * Seletor de entidade com a SESSÃO REAL (`SessionProvider`), para exercitar o
+ * caminho de recarga do `/me` após a troca — é exatamente o que o mock do teste
+ * antigo escondia.
+ */
 
 const trocarMock = vi.fn()
+const meMock = vi.fn()
+
 vi.mock('../../lib/api', () => ({
   sessaoApi: { trocarTenant: (...a: unknown[]) => trocarMock(...a) },
-}))
-
-const recarregarMock = vi.fn()
-vi.mock('../auth/session', () => ({
-  useSessao: () => ({
-    usuario: {
-      id: 1, name: 'X', email: 'x@x', tenant_id: null,
-      tenant_ativo: { id: 1, nome: 'Entidade A' },
-      tenants_disponiveis: [{ id: 1, nome: 'Entidade A' }, { id: 2, nome: 'Entidade B' }],
-      pode_todas: true, papeis: [], permissoes: [], mfa_pendente: false, mfa_confirmado: true,
-    },
-    recarregar: recarregarMock,
-  }),
+  authApi: { me: (...a: unknown[]) => meMock(...a) },
 }))
 
 import { SeletorEntidade } from './SeletorEntidade'
 
+/** Usuário super-admin, com `tenant_ativo` variável conforme o estado do servidor. */
+function usuario(tenantAtivoId: number | null) {
+  return {
+    user: {
+      id: 1,
+      name: 'X',
+      email: 'x@x',
+      tenant_id: null,
+      tenant_ativo: tenantAtivoId === null ? null : { id: tenantAtivoId, nome: `Entidade ${tenantAtivoId}` },
+      tenants_disponiveis: [
+        { id: 1, nome: 'Entidade 1' },
+        { id: 2, nome: 'Entidade 2' },
+      ],
+      pode_todas: true,
+      papeis: [],
+      permissoes: [],
+      mfa_pendente: false,
+      mfa_confirmado: true,
+    },
+  }
+}
+
 function renderizar() {
-  const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+  const qc = new QueryClient({
+    defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+  })
   return render(
     <QueryClientProvider client={qc}>
-      <SeletorEntidade />
+      <SessionProvider>
+        <SeletorEntidade />
+      </SessionProvider>
     </QueryClientProvider>,
   )
 }
 
 describe('SeletorEntidade', () => {
   beforeEach(() => {
-    trocarMock.mockReset().mockResolvedValue({ tenant_ativo: { id: 2, nome: 'Entidade B' } })
-    recarregarMock.mockReset().mockResolvedValue(undefined)
+    // O servidor começa em "Todas"; após trocar, o `/me` passa a devolver a entidade 2.
+    meMock.mockReset().mockResolvedValue(usuario(null))
+    trocarMock.mockReset().mockImplementation(async (id: number | null) => {
+      meMock.mockResolvedValue(usuario(id))
+      return { tenant_ativo: id === null ? null : { id, nome: `Entidade ${id}` } }
+    })
   })
 
-  it('lista Todas + entidades disponíveis para super-admin', () => {
+  it('lista Todas + entidades disponíveis para super-admin', async () => {
     renderizar()
-    const select = screen.getByRole('combobox', { name: /entidade/i })
+    const select = await screen.findByRole('combobox', { name: /entidade/i })
     expect(select).toBeInTheDocument()
     expect(screen.getByRole('option', { name: /todas as entidades/i })).toBeInTheDocument()
-    expect(screen.getByRole('option', { name: /entidade b/i })).toBeInTheDocument()
+    expect(screen.getByRole('option', { name: /entidade 2/i })).toBeInTheDocument()
   })
 
-  it('troca de entidade e recarrega a sessão', async () => {
+  it('troca de entidade: persiste no servidor e MANTÉM a seleção refletindo o novo /me', async () => {
     const user = userEvent.setup()
     renderizar()
 
-    await user.selectOptions(screen.getByRole('combobox', { name: /entidade/i }), '2')
+    const select = await screen.findByRole('combobox', { name: /entidade/i }) as HTMLSelectElement
+    expect(select.value).toBe('')
 
+    await user.selectOptions(select, '2')
+
+    // Persistiu no servidor...
     await waitFor(() => expect(trocarMock).toHaveBeenCalledWith(2))
-    await waitFor(() => expect(recarregarMock).toHaveBeenCalled())
+    // ...e a SESSÃO foi recarregada (o combo passa a refletir a nova entidade).
+    await waitFor(() => expect(select.value).toBe('2'))
+    expect(select.selectedOptions[0].textContent).toBe('Entidade 2')
   })
 })
