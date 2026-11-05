@@ -1,4 +1,4 @@
-import { useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { authApi, type Usuario } from '../../lib/api'
 import { SeletorEntidade } from '../../features/sessao/SeletorEntidade'
@@ -25,7 +25,9 @@ export function Topbar({ usuario }: { usuario: Usuario }) {
     <header className="shell__topbar">
       <SeletorEntidade />
       <div>
-        <strong>{usuario.name}</strong>
+        <Link to="/minha-conta" aria-label="Minha conta">
+          <strong>{usuario.name}</strong>
+        </Link>
         {papeis && <span className="shell__usuario"> · {papeis}</span>}
       </div>
       <button
