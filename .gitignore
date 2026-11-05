@@ -30,6 +30,9 @@
 # --- Docker / SO ---
 .env
 *.log
+
+# --- Backups de banco local (podem conter dados fiscais reais) ---
+/backups/
 .DS_Store
 Thumbs.db
 .idea/
