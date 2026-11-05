@@ -35,6 +35,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Composer (versão 2)
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
+# Provider `legacy` do OpenSSL 3 — OBRIGATÓRIO para ler certificados A1 da
+# ICP-Brasil (PKCS#12 com RC2-40/3DES). Sem ele, `openssl_pkcs12_read` falha
+# com "digital envelope routines::unsupported", que o app reporta (de forma
+# enganosa) como "senha incorreta ou arquivo inválido".
+COPY docker/openssl.cnf /usr/local/etc/openssl/openssl.cnf
+ENV OPENSSL_CONF=/usr/local/etc/openssl/openssl.cnf
+
 # Extensão Redis (phpredis) para fila/cache/sessão via Redis
 RUN pecl install redis && docker-php-ext-enable redis
 

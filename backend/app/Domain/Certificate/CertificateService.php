@@ -36,9 +36,9 @@ class CertificateService
 
         try {
             $pfx = SpedCertificate::readPfx($conteudo, $senha);
-        } catch (Throwable) {
+        } catch (Throwable $e) {
             throw ValidationException::withMessages([
-                'arquivo' => 'Não foi possível abrir o certificado: senha incorreta ou arquivo inválido.',
+                'arquivo' => self::mensagemDeAberturaInvalida($e->getMessage()),
             ]);
         }
 
@@ -108,13 +108,41 @@ class CertificateService
             $raiz,
             $unidade->tenant_id,
             $unidade->id,
-            now()->format('YmdHis') . '_' . bin2hex(random_bytes(4)),
+            now()->format('YmdHis').'_'.bin2hex(random_bytes(4)),
         );
     }
 
     private function disco(): string
     {
         return config('nfegov.storage.cert_disk', config('nfegov.storage.disk', 'local'));
+    }
+
+    /**
+     * Traduz a falha de abertura do PFX numa mensagem honesta.
+     *
+     * `openssl_pkcs12_read` devolve false tanto para senha errada quanto para
+     * problemas que NÃO são de senha (ex.: algoritmo legado sem o provider
+     * `legacy` do OpenSSL 3). Inspecionamos a saída do OpenSSL para não
+     * mandar o usuário procurar um problema que não existe.
+     *
+     * @param  string  $detalheErro  Mensagem crua do OpenSSL (ou da biblioteca).
+     */
+    public static function mensagemDeAberturaInvalida(string $detalheErro): string
+    {
+        $detalhe = strtolower($detalheErro);
+
+        // "digital envelope routines::unsupported" (ou "unsupported algorithm"):
+        // o PFX usa criptografia que este OpenSSL não processa — não é senha.
+        if (
+            str_contains($detalhe, 'unsupported')
+            || str_contains($detalhe, 'envelope routines')
+        ) {
+            return 'Não foi possível abrir o certificado: o arquivo usa uma '
+                .'criptografia não suportada pelo servidor. Contate o suporte.';
+        }
+
+        // "mac verify failure": a senha não confere com o arquivo.
+        return 'Não foi possível abrir o certificado: senha incorreta ou arquivo inválido.';
     }
 
     /**

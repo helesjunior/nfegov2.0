@@ -1,0 +1,25 @@
+# Configuração do OpenSSL para PHP (termo de referência: certificados A1 ICP-Brasil).
+#
+# Os certificados A1 reais da ICP-Brasil usam algoritmos legados (ex.: RC2-40
+# no PKCS#12). No OpenSSL 3 esses algoritmos foram movidos para o provider
+# `legacy`, DESATIVADO por padrão. Sem ele, `openssl_pkcs12_read` (usado por
+# `NFePHP\Common\Certificate::readPfx`) falha com:
+#
+#   error:0308010C:digital envelope routines::unsupported
+#
+# O container do PHP carrega este arquivo via OPENSSL_CONF (definido no
+# Dockerfile). Ativamos default + legacy explicitamente.
+openssl_conf = openssl_init
+
+[openssl_init]
+providers = provider_sect
+
+[provider_sect]
+default = default_sect
+legacy = legacy_sect
+
+[default_sect]
+activate = 1
+
+[legacy_sect]
+activate = 1
