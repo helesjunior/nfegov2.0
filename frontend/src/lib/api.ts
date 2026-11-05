@@ -60,6 +60,7 @@ export interface Usuario {
   papeis: string[]
   permissoes: string[]
   mfa_pendente: boolean
+  mfa_obrigatorio: boolean
   mfa_confirmado: boolean
 }
 
@@ -114,6 +115,37 @@ export const mfaApi = {
   async verify(code: string): Promise<{ recente_ate: string }> {
     const { data } = await http.post('/mfa/verify', { code })
     return data
+  },
+}
+
+// ---- Perfil do usuário ------------------------------------------------------
+
+export interface DadosPerfil {
+  name: string
+  email: string
+  current_password?: string
+}
+
+export interface TrocaSenha {
+  current_password: string
+  password: string
+  password_confirmation: string
+}
+
+export const perfilApi = {
+  async atualizar(payload: DadosPerfil): Promise<Usuario> {
+    const { data } = await http.put<{ user: Usuario }>('/me', payload)
+    return data.user
+  },
+
+  async trocarSenha(payload: TrocaSenha): Promise<Usuario> {
+    const { data } = await http.put<{ user: Usuario }>('/me/password', payload)
+    return data.user
+  },
+
+  async desabilitarMfa(code: string): Promise<Usuario> {
+    const { data } = await http.delete<{ user: Usuario }>('/me/mfa', { data: { code } })
+    return data.user
   },
 }
 
