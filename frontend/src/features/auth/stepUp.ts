@@ -61,7 +61,7 @@ const acoes = {
     return devolvido
   },
   limparRota(): void {
-    estado = { ...estado, rota: null, renovado: false }
+    estado = { ...estado, rota: null }
     notificar()
   },
   limparTudo(): void {
@@ -81,7 +81,7 @@ export interface StepUpApi {
   consumirRascunho: (origem: OrigemRascunho) => Rascunho | null
   /** Rota de retorno (ou null). */
   usarRotaRetorno: () => string | null
-  /** Limpa apenas a rota e o aviso de renovação (mantém o rascunho). */
+  /** Limpa apenas a rota (mantém o rascunho e o aviso de renovação). */
   limparRota: () => void
   /** Limpa tudo: rota, rascunho e aviso. */
   limparTudo: () => void

@@ -63,4 +63,25 @@ describe('useStepUp', () => {
     expect(result.current.usarRotaRetorno()).toBeNull()
     expect(result.current.consumirRascunho('tenant')?.dados).toEqual({ nome: 'Y' })
   })
+
+  it('limparRota NÃO apaga o aviso de verificação renovada', () => {
+    const { result } = renderHook(() => useStepUp())
+
+    act(() => result.current.desafiar('/entidades'))
+    act(() => result.current.marcarRecémVerificado(true))
+    // A MfaPage marca renovado e logo em seguida limpa a rota.
+    act(() => result.current.limparRota())
+
+    expect(result.current.foiRenovado).toBe(true)
+    expect(result.current.usarRotaRetorno()).toBeNull()
+  })
+
+  it('desafiar reseta o aviso de renovação (novo desafio)', () => {
+    const { result } = renderHook(() => useStepUp())
+
+    act(() => result.current.marcarRecémVerificado(true))
+    act(() => result.current.desafiar('/entidades'))
+
+    expect(result.current.foiRenovado).toBe(false)
+  })
 })
