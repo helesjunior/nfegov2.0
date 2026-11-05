@@ -1,8 +1,9 @@
-import { useState, type FormEvent } from 'react'
+import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { mfaApi, mensagemDeErro } from '../../lib/api'
 import { useSessao } from './session'
+import { useStepUp } from './stepUp'
 
 /**
  * Tela do segundo fator (TOTP).
@@ -11,14 +12,26 @@ import { useSessao } from './session'
  * - MFA PENDENTE (`user.mfa_pendente`): mostra o QR/segredo e confirma o código
  *   para ativar o segundo fator.
  * - MFA JÁ ATIVO: apenas pede o código para renovar a janela de step-up.
+ *
+ * Quando chegou aqui por um desafio de step-up (rota de retorno registrada),
+ * volta para a tela de origem ao confirmar; se o usuário sair sem confirmar,
+ * o desafio (e o rascunho) é descartado.
  */
 export function MfaPage() {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const { usuario } = useSessao()
+  const { usarRotaRetorno, limparRota, limparTudo, marcarRecémVerificado } = useStepUp()
 
   const [code, setCode] = useState('')
   const [erro, setErro] = useState<string | null>(null)
+
+  // Marca que a verificação foi concluída; o cleanup de saída só limpa o
+  // desafio se o usuário abandonou a tela sem renovar.
+  const concluido = useRef(false)
+  useEffect(() => () => {
+    if (!concluido.current) limparTudo()
+  }, [limparTudo])
 
   const pendente = usuario?.mfa_pendente ?? false
 
@@ -39,8 +52,13 @@ export function MfaPage() {
   const verificar = useMutation({
     mutationFn: () => mfaApi.verify(code),
     onSuccess: async () => {
+      concluido.current = true
+      marcarRecémVerificado(true)
+      const rota = usarRotaRetorno()
+      // Limpa só a rota; o rascunho é consumido pelo formulário de origem.
+      limparRota()
       await queryClient.invalidateQueries({ queryKey: ['sessao'] })
-      navigate('/')
+      navigate(rota ?? '/')
     },
     onError: (e) => setErro(mensagemDeErro(e)),
   })

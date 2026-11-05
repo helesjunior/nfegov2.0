@@ -44,6 +44,36 @@ function instantaneo(): EstadoStepUp {
   return estado
 }
 
+/**
+ * Ações com identidade ESTÁVEL (fora do corpo do hook), para que possam ser
+ * dependências de efeitos sem provocar re-render/limpeza em laço.
+ */
+const acoes = {
+  desafiar(rota: string, rascunho?: Rascunho): void {
+    estado = { rota, rascunho: rascunho ?? null, renovado: false }
+    notificar()
+  },
+  consumirRascunho(origem: OrigemRascunho): Rascunho | null {
+    if (!estado.rascunho || estado.rascunho.origem !== origem) return null
+    const devolvido = estado.rascunho
+    estado = { ...estado, rascunho: null }
+    notificar()
+    return devolvido
+  },
+  limparRota(): void {
+    estado = { ...estado, rota: null, renovado: false }
+    notificar()
+  },
+  limparTudo(): void {
+    estado = { rota: null, rascunho: null, renovado: false }
+    notificar()
+  },
+  marcarRecémVerificado(vivo: boolean): void {
+    estado = { ...estado, renovado: vivo }
+    notificar()
+  },
+} satisfies Omit<StepUpApi, 'usarRotaRetorno' | 'foiRenovado'>
+
 export interface StepUpApi {
   /** Registra o desafio: para onde voltar e (opcional) o rascunho do formulário. */
   desafiar: (rota: string, rascunho?: Rascunho) => void
@@ -65,32 +95,12 @@ export function useStepUp(): StepUpApi {
   const atual = useSyncExternalStore(assinar, instantaneo, instantaneo)
 
   return {
-    desafiar(rota, rascunho) {
-      estado = { rota, rascunho: rascunho ?? null, renovado: false }
-      notificar()
-    },
-    consumirRascunho(origem) {
-      if (!estado.rascunho || estado.rascunho.origem !== origem) return null
-      const devolvido = estado.rascunho
-      estado = { ...estado, rascunho: null }
-      notificar()
-      return devolvido
-    },
-    usarRotaRetorno() {
-      return atual.rota
-    },
-    limparRota() {
-      estado = { ...estado, rota: null, renovado: false }
-      notificar()
-    },
-    limparTudo() {
-      estado = { rota: null, rascunho: null, renovado: false }
-      notificar()
-    },
-    marcarRecémVerificado(vivo) {
-      estado = { ...estado, renovado: vivo }
-      notificar()
-    },
+    desafiar: acoes.desafiar,
+    consumirRascunho: acoes.consumirRascunho,
+    usarRotaRetorno: () => atual.rota,
+    limparRota: acoes.limparRota,
+    limparTudo: acoes.limparTudo,
+    marcarRecémVerificado: acoes.marcarRecémVerificado,
     foiRenovado: atual.renovado,
   }
 }
