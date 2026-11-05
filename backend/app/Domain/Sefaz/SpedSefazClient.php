@@ -26,8 +26,11 @@ class SpedSefazClient implements SefazClient
 
     public function distDFeCom(Tools $tools, Unidade $unidade, int $ultimoNsu): string
     {
-        // (ultNSU, numNSU=0, chave='', fonte='') — consulta incremental padrão.
-        return (string) $tools->sefazDistDFe($ultimoNsu, 0, '', '');
+        // (ultNSU, numNSU=0, chave='', fonte='AN') — consulta incremental padrão.
+        // A fonte PRECISA ser 'AN' (Ambiente Nacional): o sped-nfe repassa esse
+        // valor ao resolvedor de autorizador; vazio, falha com
+        // "Nao existe autorizador [] para os webservices do modelo [55]".
+        return (string) $tools->sefazDistDFe($ultimoNsu, 0, '', 'AN');
     }
 
     public function manifestarCiencia(Unidade $unidade, string $chave): bool
