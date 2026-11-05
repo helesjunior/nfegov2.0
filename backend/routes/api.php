@@ -45,6 +45,12 @@ Route::middleware('web')->group(function () {
         Route::post('/sessao/tenant', [\App\Http\Controllers\Api\SessaoTenantController::class, 'update'])
             ->name('api.sessao.tenant');
 
+        // Área de perfil do próprio usuário ("Minha conta"). Sem o middleware
+        // `mfa`: quem ainda não confirmou o segundo fator precisa acessar a
+        // própria área para configurá-lo.
+        Route::put('/me', [\App\Http\Controllers\Api\ProfileController::class, 'update'])
+            ->name('api.me.update');
+
         Route::prefix('mfa')->group(function () {
             Route::post('/setup', [MfaController::class, 'setup'])->name('api.mfa.setup');
             Route::post('/confirm', [MfaController::class, 'confirm'])->name('api.mfa.confirm');
