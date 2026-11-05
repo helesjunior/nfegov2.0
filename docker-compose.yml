@@ -40,8 +40,12 @@ services:
     container_name: nfegov_app
     restart: unless-stopped
     working_dir: /var/www/html
+    # Bind mount do código + `vendor/` em volume Linux: ler as milhares de
+    # classes do autoloader do disco do Docker (não do bind mount do Windows)
+    # é o que evita o boot de 20s no dev. Em produção o código vai na imagem.
     volumes:
       - ./backend:/var/www/html
+      - vendordata:/var/www/html/vendor
     depends_on:
       postgres:
         condition: service_healthy
@@ -75,6 +79,7 @@ services:
     command: ["php", "artisan", "horizon"]
     volumes:
       - ./backend:/var/www/html
+      - vendordata:/var/www/html/vendor
     depends_on:
       postgres:
         condition: service_healthy
@@ -96,6 +101,7 @@ services:
     command: ["php", "artisan", "schedule:work"]
     volumes:
       - ./backend:/var/www/html
+      - vendordata:/var/www/html/vendor
     depends_on:
       postgres:
         condition: service_healthy
@@ -110,3 +116,8 @@ services:
 volumes:
   pgdata:
   redisdata:
+  # `vendor/` fica num volume Linux (não no bind mount do Windows) para o
+  # autoloader ler rápido no dev. Popular uma vez:
+  #   docker compose up -d --force-recreate app
+  #   docker compose exec -T app composer install --no-interaction
+  vendordata:

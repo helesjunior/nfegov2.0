@@ -262,10 +262,17 @@ Para desenvolvimento com recarga a quente, rode `npm run dev` em `frontend/`
 (porta 5173, com proxy de `/api` e `/sanctum` para `localhost:8000`).
 
 > **Nota (Windows/macOS):** em desenvolvimento, o bind mount do código no
-> container (Docker Desktop → WSL2) torna cada requisição do Laravel lenta
-> (alguns segundos), pois o bootstrap lê centenas de arquivos através da
-> ponte de sistema de arquivos. Isso é uma característica do ambiente, não um
-> defeito da aplicação. Em produção, o código é copiado para a imagem.
+> container (Docker Desktop → WSL2) torna o boot do Laravel lento, pois o
+> autoloader lê milhares de arquivos através da ponte de sistema de arquivos.
+> **Solução já aplicada:** o `vendor/` fica num **volume Linux** (não no bind
+> mount) — ver `vendordata` no `docker-compose.yml`. Isso derruba uma
+> requisição de ~20s para ~0,2s. Se o volume sumir (ex.: `docker volume rm`),
+> repopule com `docker compose exec -T app composer install`.
+>
+> Para acelerar ainda mais, cacheie config/rotas (opcional):
+> `docker compose exec -T app sh tools/dev-fast.sh on`.
+> **Antes de rodar os testes, limpe** (`... dev-fast.sh off`): os caches de
+> config/rotas não podem coexistir com o `phpunit.xml`.
 
 ### Testes
 

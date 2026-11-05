@@ -1,0 +1,31 @@
+# Não copiar para a imagem o que é gerado/instalado localmente ou não faz
+# parte da aplicação. Reduz o contexto de build e evita vazar segredos.
+.git
+.gitignore
+.idea
+.vscode
+
+# Dependências (instaladas no build via composer install)
+vendor
+node_modules
+
+# Artefatos gerados / caches
+bootstrap/cache/*.php
+storage/logs/*
+storage/framework/cache/data/*
+storage/framework/sessions/*
+storage/framework/views/*
+storage/app/private/*
+storage/app/public/*
+tests
+tools
+
+# Ambiente e bancos locais
+.env
+.env.*
+!.env.example
+*.sqlite
+database/*.sqlite
+
+# Frontend (buildado fora da imagem PHP)
+../frontend
