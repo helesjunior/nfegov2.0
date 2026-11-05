@@ -1,4 +1,5 @@
 import { createBrowserRouter, Navigate, type RouteObject } from 'react-router-dom'
+import { useLocation } from 'react-router-dom'
 import { AppShell } from '../components/layout/AppShell'
 import { LoginPage } from '../features/auth/LoginPage'
 import { MfaPage } from '../features/auth/MfaPage'
@@ -18,10 +19,13 @@ import { MinhaContaPage } from '../features/perfil/MinhaContaPage'
  * Guard de rota autenticada.
  *
  * Enquanto `/api/me` não responde, mostra um placeholder. Sem usuário, manda
- * para o login. Se o MFA estiver pendente, força a tela de configuração.
+ * para o login. Se o MFA estiver pendente, força a tela de configuração —
+ * exceto em `/minha-conta`, que é a própria área de configuração do usuário
+ * (permite ativar o segundo fator de lá).
  */
 function RotaProtegida({ children }: { children: React.ReactNode }) {
   const { carregando, autenticado, usuario } = useSessao()
+  const local = useLocation()
 
   if (carregando) {
     return <div className="auth-tela">Carregando…</div>
@@ -31,7 +35,7 @@ function RotaProtegida({ children }: { children: React.ReactNode }) {
     return <Navigate to="/login" replace />
   }
 
-  if (usuario?.mfa_pendente) {
+  if (usuario?.mfa_pendente && local.pathname !== '/minha-conta') {
     return <Navigate to="/mfa" replace />
   }
 

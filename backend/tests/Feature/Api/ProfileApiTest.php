@@ -58,6 +58,16 @@ class ProfileApiTest extends TestCase
         ])->assertOk()->assertJsonPath('user.email', 'novo@orgao.gov.br');
     }
 
+    public function test_mudar_apenas_a_caixa_do_email_exige_senha_atual(): void
+    {
+        $u = $this->operador('op@orgao.gov.br');
+
+        // Sem a senha atual: falha, pois a caixa também afeta o login.
+        $this->actingAs($u)->putJson('/api/me', ['name' => $u->name, 'email' => 'OP@orgao.gov.br'])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors('current_password');
+    }
+
     public function test_email_duplicado_falha(): void
     {
         $this->operador('ocupado@orgao.gov.br');
@@ -169,5 +179,30 @@ class ProfileApiTest extends TestCase
             ->assertForbidden();
 
         $this->assertNotNull($u->fresh()->two_factor_confirmed_at);
+    }
+
+    public function test_mutacoes_de_perfil_sao_auditadas(): void
+    {
+        $u = $this->operador();
+        $secret = $this->comMfa($u);
+        $codigo = app(\App\Services\TwoFactorService::class)->codigoAtual($secret);
+
+        $this->actingAs($u)->putJson('/api/me', [
+            'name' => 'Novo Nome',
+            'email' => 'novo@orgao.gov.br',
+            'current_password' => 'senha12345',
+        ])->assertOk();
+
+        $this->actingAs($u)->putJson('/api/me/password', [
+            'current_password' => 'senha12345',
+            'password' => 'novaSenha123',
+            'password_confirmation' => 'novaSenha123',
+        ])->assertOk();
+
+        $this->actingAs($u)->deleteJson('/api/me/mfa', ['code' => $codigo])->assertOk();
+
+        $this->assertDatabaseHas('audit_logs', ['acao' => 'usuario.perfil.atualizado', 'user_id' => $u->id]);
+        $this->assertDatabaseHas('audit_logs', ['acao' => 'usuario.senha.alterada', 'user_id' => $u->id]);
+        $this->assertDatabaseHas('audit_logs', ['acao' => 'usuario.mfa.desabilitado', 'user_id' => $u->id]);
     }
 }

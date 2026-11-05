@@ -15,7 +15,9 @@ class UpdateProfileRequest extends FormRequest
     public function rules(): array
     {
         $user = $this->user();
-        $emailMudou = strtolower((string) $this->input('email')) !== strtolower((string) $user->email);
+        // Comparação EXATA: alterar só a caixa também afeta a credencial de
+        // login (Postgres é case-sensitive), então exige a senha atual.
+        $emailMudou = (string) $this->input('email') !== (string) $user->email;
 
         return [
             'name' => ['required', 'string', 'max:255'],

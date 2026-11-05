@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\DisableMfaRequest;
 use App\Http\Requests\UpdatePasswordRequest;
 use App\Http\Requests\UpdateProfileRequest;
+use App\Models\Concerns\Auditable;
 use App\Services\TwoFactorService;
 use App\Services\UserPresenter;
 use Illuminate\Http\JsonResponse;
@@ -20,6 +21,8 @@ use Illuminate\Validation\ValidationException;
  */
 class ProfileController extends Controller
 {
+    use Auditable;
+
     public function __construct(private readonly UserPresenter $presenter)
     {
     }
@@ -27,7 +30,15 @@ class ProfileController extends Controller
     public function update(UpdateProfileRequest $request): JsonResponse
     {
         $user = $request->user();
+        $emailAnterior = $user->email;
         $user->fill($request->safe()->only(['name', 'email']))->save();
+
+        $this->audit(
+            'usuario.perfil.atualizado',
+            ['email_anterior' => $emailAnterior, 'email' => $user->email],
+            'usuario',
+            $user->id,
+        );
 
         return response()->json(['user' => $this->presenter->paraUsuario($user->fresh(), $this->preferencia($request))]);
     }
@@ -37,6 +48,8 @@ class ProfileController extends Controller
         $user = $request->user();
         // O cast `password => hashed` do model aplica o hash ao atribuir.
         $user->fill(['password' => $request->validated('password')])->save();
+
+        $this->audit('usuario.senha.alterada', [], 'usuario', $user->id);
 
         return response()->json(['user' => $this->presenter->paraUsuario($user->fresh(), $this->preferencia($request))]);
     }
@@ -67,6 +80,8 @@ class ProfileController extends Controller
             'two_factor_confirmed_at' => null,
             'mfa_recent_at' => null,
         ])->save();
+
+        $this->audit('usuario.mfa.desabilitado', [], 'usuario', $user->id);
 
         return response()->json(['user' => $this->presenter->paraUsuario($user->fresh(), $this->preferencia($request))]);
     }
