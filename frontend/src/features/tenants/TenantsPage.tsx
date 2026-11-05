@@ -1,7 +1,9 @@
-import { useState, type FormEvent } from 'react'
+import { useEffect, useState, type FormEvent } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { mensagemDeErro, tenantsApi, type NovoTenant, type Tenant } from '../../lib/api'
+import { ehErroDeStepUp, mensagemDeErro, tenantsApi, type NovoTenant, type Tenant } from '../../lib/api'
 import { formatarCnpj } from '../../lib/format'
+import { useStepUp, type Rascunho } from '../auth/stepUp'
 
 /**
  * Lista de entidades (tenants) + criação, edição e ativação/desativação.
@@ -10,9 +12,28 @@ import { formatarCnpj } from '../../lib/format'
  * `usuario.pode_todas`); a autorização efetiva é do backend.
  */
 export function TenantsPage() {
+  const queryClient = useQueryClient()
+  const { consumirRascunho, foiRenovado } = useStepUp()
   const [pagina, setPagina] = useState(1)
   const [formAberto, setFormAberto] = useState(false)
   const [editando, setEditando] = useState<Tenant | null>(null)
+  // Rascunho restaurado após um step-up (form reaberto e preenchido).
+  const [rascunho, setRascunho] = useState<Rascunho | null>(null)
+
+  // Ao montar, retoma um rascunho deixado por um desafio de step-up. O consumo
+  // acontece em efeito (não no initializer) por causa do StrictMode.
+  useEffect(() => {
+    const pendente = consumirRascunho('tenant')
+    if (!pendente) return
+
+    setRascunho(pendente)
+    setEditando(
+      pendente.modo === 'editar' && pendente.id
+        ? (buscarTenantNoCache(queryClient, pendente.id) ?? null)
+        : null,
+    )
+    setFormAberto(true)
+  }, [consumirRascunho, queryClient])
 
   const { data, isLoading, isError } = useQuery({
     queryKey: ['tenants', pagina],
@@ -21,6 +42,12 @@ export function TenantsPage() {
 
   return (
     <div>
+      {foiRenovado && (
+        <div className="alerta alerta--info" role="status">
+          Verificação de segurança renovada. Confira os dados e clique em Salvar para concluir.
+        </div>
+      )}
+
       <div className="pagina-topo">
         <h1>Entidades</h1>
         <button
@@ -28,6 +55,7 @@ export function TenantsPage() {
           className="botao"
           onClick={() => {
             setEditando(null)
+            setRascunho(null)
             setFormAberto((v) => !v)
           }}
         >
@@ -39,14 +67,17 @@ export function TenantsPage() {
         <TenantForm
           key={editando?.id ?? 'novo'}
           tenant={editando}
+          rascunhoInicial={rascunho ?? undefined}
           onConcluido={() => {
             setFormAberto(false)
             setEditando(null)
+            setRascunho(null)
             setPagina(1)
           }}
           onCancelar={() => {
             setFormAberto(false)
             setEditando(null)
+            setRascunho(null)
           }}
         />
       )}
@@ -137,9 +168,30 @@ export function TenantsPage() {
   )
 }
 
+/**
+ * Recupera a entidade de uma página já carregada no cache do react-query.
+ *
+ * Usado ao restaurar um rascunho de edição: a lista pode estar em qualquer
+ * página; varremos as entradas em cache. Se não achar, o formulário abre no
+ * modo criação com os dados do rascunho.
+ */
+function buscarTenantNoCache(
+  queryClient: ReturnType<typeof useQueryClient>,
+  id: number,
+): Tenant | null {
+  const entradas = queryClient.getQueriesData<{ data: Tenant[] }>({ queryKey: ['tenants'] })
+  for (const [, valor] of entradas) {
+    const achado = valor?.data.find((t) => t.id === id)
+    if (achado) return achado
+  }
+  return null
+}
+
 /** Ação de ativar/desativar uma entidade, com confirmação antes da mudança. */
 function BotaoAtivo({ tenant }: { tenant: Tenant }) {
   const queryClient = useQueryClient()
+  const navigate = useNavigate()
+  const { desafiar } = useStepUp()
   const [erro, setErro] = useState<string | null>(null)
 
   const alternar = useMutation({
@@ -147,7 +199,14 @@ function BotaoAtivo({ tenant }: { tenant: Tenant }) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['tenants'] })
     },
-    onError: (e) => setErro(mensagemDeErro(e)),
+    onError: (e) => {
+      if (ehErroDeStepUp(e)) {
+        desafiar('/entidades')
+        navigate('/mfa')
+        return
+      }
+      setErro(mensagemDeErro(e))
+    },
   })
 
   function aoClicar() {
@@ -180,19 +239,26 @@ function BotaoAtivo({ tenant }: { tenant: Tenant }) {
 /** Formulário de criação/edição de entidade. */
 function TenantForm({
   tenant,
+  rascunhoInicial,
   onConcluido,
   onCancelar,
 }: {
   tenant: Tenant | null
+  rascunhoInicial?: Rascunho
   onConcluido: () => void
   onCancelar: () => void
 }) {
   const queryClient = useQueryClient()
+  const navigate = useNavigate()
+  const { desafiar } = useStepUp()
   const editando = Boolean(tenant)
 
-  const [nome, setNome] = useState(tenant?.nome ?? '')
-  const [cnpj, setCnpj] = useState(tenant?.cnpj ?? '')
-  const [ativo, setAtivo] = useState(tenant?.ativo ?? true)
+  // O rascunho (quando existe) tem precedência sobre os valores salvos: ele
+  // representa o que o usuário tinha digitado antes do desafio de step-up.
+  const d = rascunhoInicial?.dados ?? {}
+  const [nome, setNome] = useState((d.nome as string) ?? tenant?.nome ?? '')
+  const [cnpj, setCnpj] = useState((d.cnpj as string) ?? tenant?.cnpj ?? '')
+  const [ativo, setAtivo] = useState((d.ativo as boolean) ?? tenant?.ativo ?? true)
   const [erro, setErro] = useState<string | null>(null)
 
   const salvar = useMutation({
@@ -202,7 +268,19 @@ function TenantForm({
       queryClient.invalidateQueries({ queryKey: ['tenants'] })
       onConcluido()
     },
-    onError: (e) => setErro(mensagemDeErro(e)),
+    onError: (e) => {
+      if (ehErroDeStepUp(e)) {
+        desafiar('/entidades', {
+          origem: 'tenant',
+          modo: editando ? 'editar' : 'criar',
+          id: tenant?.id,
+          dados: { nome, cnpj, ativo },
+        })
+        navigate('/mfa')
+        return
+      }
+      setErro(mensagemDeErro(e))
+    },
   })
 
   function aoEnviar(evento: FormEvent) {
