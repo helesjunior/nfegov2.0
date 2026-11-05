@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Services\UserPresenter;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -18,6 +19,10 @@ use Illuminate\Validation\ValidationException;
  */
 class AuthController extends Controller
 {
+    public function __construct(private readonly UserPresenter $presenter)
+    {
+    }
+
     public function login(Request $request): JsonResponse
     {
         $credenciais = $request->validate([
@@ -59,7 +64,7 @@ class AuthController extends Controller
         }
 
         return response()->json([
-            'user' => $this->dadosUsuario($user),
+            'user' => $this->presenter->paraUsuario($user, $this->preferenciaTenant()),
         ]);
     }
 
@@ -69,7 +74,7 @@ class AuthController extends Controller
         $user = $request->user();
 
         return response()->json([
-            'user' => $this->dadosUsuario($user),
+            'user' => $this->presenter->paraUsuario($user, $this->preferenciaTenant()),
         ]);
     }
 
@@ -88,32 +93,12 @@ class AuthController extends Controller
     }
 
     /**
-     * Monta a representação segura do usuário (sem senha; com papéis/tenant).
+     * Tenant ativo preferido na sessão (ou null = "Todas"/sem preferência).
      */
-    private function dadosUsuario(User $user): array
+    private function preferenciaTenant(): ?int
     {
-        $twoFactor = app(\App\Services\TwoFactorService::class);
-        $exigeMfa = $user->hasAnyRole(config('nfegov.mfa.papeis_obrigatorios', ['super-admin', 'admin-tenant']));
+        $valor = request()->session()?->get('tenant_id');
 
-        $resolver = app(\App\Services\TenantAtivoResolver::class);
-        $preferencia = request()->session()?->get('tenant_id');
-        $tenantAtivoId = $resolver->paraUsuario($user, $preferencia === null ? null : (int) $preferencia);
-        $tenantAtivo = $tenantAtivoId ? \App\Models\Tenant::find($tenantAtivoId) : null;
-        $disponiveis = $resolver->disponiveis($user)->map(fn ($t) => ['id' => $t->id, 'nome' => $t->nome]);
-
-        return [
-            'id' => $user->id,
-            'name' => $user->name,
-            'email' => $user->email,
-            'tenant_id' => $user->tenant_id,
-            'tenant_ativo' => $tenantAtivo ? ['id' => $tenantAtivo->id, 'nome' => $tenantAtivo->nome] : null,
-            'tenants_disponiveis' => $disponiveis,
-            'pode_todas' => $resolver->podeTodas($user),
-            'papeis' => $user->getRoleNames(),
-            'permissoes' => $user->getAllPermissions()->pluck('name'),
-            // Sinaliza ao SPA que o segundo fator precisa ser configurado.
-            'mfa_pendente' => $exigeMfa && ! $twoFactor->confirmado($user),
-            'mfa_confirmado' => $twoFactor->confirmado($user),
-        ];
+        return $valor === null ? null : (int) $valor;
     }
 }
