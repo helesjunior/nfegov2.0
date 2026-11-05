@@ -99,6 +99,41 @@ class UnidadeApiTest extends TestCase
         $resp->assertStatus(422);
     }
 
+    public function test_autorizacao_usa_vinculo_e_nao_a_coluna_legada(): void
+    {
+        // O usuário TEM vínculo (N:N) com o tenant A, mas a coluna legada
+        // `users.tenant_id` aponta para o tenant B. A autorização deve seguir o
+        // VÍNCULO: editar a unidade de A é permitido, e a de B é negada — mesmo
+        // que a coluna legada diga o contrário.
+        $a = Tenant::factory()->create();
+        $b = Tenant::factory()->create();
+        $ua = Unidade::factory()->create(['tenant_id' => $a->id]);
+        $ub = Unidade::factory()->create(['tenant_id' => $b->id]);
+
+        $u = User::factory()->create(['tenant_id' => $b->id]);
+        $u->tenants()->attach($a->id);
+        $u->assignRole('admin-tenant');
+        $u->forceFill([
+            'two_factor_secret' => app(\App\Services\TwoFactorService::class)->gerarSegredo(),
+            'two_factor_confirmed_at' => now(),
+            'mfa_recent_at' => now(),
+        ])->save();
+
+        // Mesmo com `tenant_id` legado = B, o vínculo com A autoriza a unidade A.
+        $this->actingAs($u)->putJson("/api/unidades/{$ua->id}", [
+            'nome' => 'Editada por vínculo',
+            'cnpj' => $ua->cnpj,
+            'uf' => $ua->uf,
+        ])->assertOk();
+
+        // E o `tenant_id` legado = B NÃO autoriza a unidade B (só o vínculo conta).
+        $this->actingAs($u)->putJson("/api/unidades/{$ub->id}", [
+            'nome' => 'Tentativa indevida',
+            'cnpj' => $ub->cnpj,
+            'uf' => $ub->uf,
+        ])->assertNotFound();
+    }
+
     public function test_lista_sync_runs_do_tenant(): void
     {
         $a = Tenant::factory()->create();

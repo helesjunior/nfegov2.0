@@ -31,7 +31,7 @@ class StoreUnidadeRequest extends FormRequest
             // divergente no corpo é rejeitado (não se cria unidade em outro
             // tenant).
             'tenant_id' => $contexto === null
-                ? ['required', 'integer', Rule::exists('tenants', 'id')]
+                ? ['required', 'integer', Rule::exists('tenants', 'id')->where('ativo', true)]
                 : ['nullable', 'integer', Rule::in([$contexto])],
             'nome' => ['required', 'string', 'max:255'],
             'nome_resumido' => ['nullable', 'string', 'max:255'],

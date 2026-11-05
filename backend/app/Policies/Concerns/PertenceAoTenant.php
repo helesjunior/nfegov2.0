@@ -19,7 +19,13 @@ use App\Models\User;
 trait PertenceAoTenant
 {
     /**
-     * O usuário pertence ao mesmo tenant do recurso?
+     * O usuário tem acesso ao tenant do recurso?
+     *
+     * O vínculo é resolvido pela relação N:N (`tenant_user`), que é a fonte de
+     * verdade — NÃO pela coluna legada `users.tenant_id` (que só guarda o
+     * "tenant principal" de conveniência). Assim, um usuário vinculado a vários
+     * tenants alcança recursos de qualquer um deles, e um `tenant_id` legado
+     * divergente do vínculo não concede acesso indevido.
      */
     protected function mesmoTenant(User $user, $recurso): bool
     {
@@ -29,7 +35,11 @@ trait PertenceAoTenant
             return true;
         }
 
-        return (int) $user->tenant_id === (int) $recurso->tenant_id;
+        if ($recurso->tenant_id === null) {
+            return false;
+        }
+
+        return $user->tenants()->whereKey($recurso->tenant_id)->exists();
     }
 
     protected function ehSuperAdmin(User $user): bool

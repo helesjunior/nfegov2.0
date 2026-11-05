@@ -20,11 +20,15 @@ class TenantController extends Controller
 {
     use Auditable;
 
-    public function index(): AnonymousResourceCollection
+    public function index(Request $request): AnonymousResourceCollection
     {
         Gate::authorize('viewAny', Tenant::class);
 
-        return TenantResource::collection(Tenant::orderBy('nome')->paginate(50));
+        // `per_page` limitado a 100 (mesmo teto de outras listagens); o padrão
+        // é 50. A SPA pede uma página maior para montar o seletor de entidades.
+        $perPage = min((int) $request->integer('per_page', 50) ?: 50, 100);
+
+        return TenantResource::collection(Tenant::orderBy('nome')->paginate($perPage));
     }
 
     public function store(StoreTenantRequest $request): JsonResponse

@@ -48,7 +48,9 @@ export function UsuariosPage() {
 
   const { data: entidades } = useQuery({
     queryKey: ['tenants', 'todas'],
-    queryFn: () => tenantsApi.listar(200, 1),
+    // 100 = teto do `per_page` no backend (TenantController::index). Cobre a
+    // lista de entidades oferecidas no formulário de usuário do super-admin.
+    queryFn: () => tenantsApi.listar(100, 1),
     enabled: podeTodas,
   })
 

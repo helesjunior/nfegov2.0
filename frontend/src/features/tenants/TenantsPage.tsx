@@ -212,7 +212,9 @@ function TenantForm({
     salvar.mutate({
       nome,
       cnpj: digitos || undefined,
-      ativo,
+      // `ativo` só é editável na criação; na edição a situação é alterada pela
+      // ação dedicada (BotaoAtivo → PUT /tenants/{id}/ativo).
+      ...(editando ? {} : { ativo }),
     })
   }
 
@@ -243,13 +245,15 @@ function TenantForm({
           />
         </div>
 
-        <div className="campo">
-          <label htmlFor="ativo">Situação</label>
-          <select id="ativo" value={ativo ? '1' : '0'} onChange={(e) => setAtivo(e.target.value === '1')}>
-            <option value="1">Ativa</option>
-            <option value="0">Inativa</option>
-          </select>
-        </div>
+        {!editando && (
+          <div className="campo">
+            <label htmlFor="ativo">Situação</label>
+            <select id="ativo" value={ativo ? '1' : '0'} onChange={(e) => setAtivo(e.target.value === '1')}>
+              <option value="1">Ativa</option>
+              <option value="0">Inativa</option>
+            </select>
+          </div>
+        )}
 
         <button type="submit" className="botao" disabled={salvar.isPending}>
           {salvar.isPending ? 'Salvando…' : 'Salvar'}

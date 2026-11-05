@@ -16,7 +16,8 @@ use Tests\TestCase;
  *
  * Duas camadas de defesa:
  * 1. `BelongsToTenant` (global scope) filtra as consultas por tenant.
- * 2. Policies checam `user->tenant_id === recurso->tenant_id`.
+ * 2. Policies checam o vínculo N:N (`tenant_user`) do usuário com o tenant do
+ *    recurso — não a coluna legada `users.tenant_id`.
  *
  * Um tenant NUNCA deve enxergar dados de outro. Quando o recurso não é do
  * tenant do usuário, a resposta é 404 (não 403): não revelamos existência.
@@ -51,7 +52,10 @@ class TenantIsolationTest extends TestCase
 
     private function usuarioDe(Tenant $tenant, string $papel = 'admin-tenant'): User
     {
-        $u = User::factory()->create(['tenant_id' => $tenant->id]);
+        // `comTenant` cria o vínculo em `tenant_user` (fonte de verdade) e
+        // preenche `users.tenant_id` por compatibilidade — a autorização passa a
+        // depender do vínculo, não da coluna legada.
+        $u = User::factory()->comTenant($tenant)->create();
         $u->assignRole($papel);
 
         return $u;

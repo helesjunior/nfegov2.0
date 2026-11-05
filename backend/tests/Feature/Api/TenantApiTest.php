@@ -93,4 +93,30 @@ class TenantApiTest extends TestCase
             ->assertOk()
             ->assertJsonPath('data.id', $t->id);
     }
+
+    public function test_mutacao_de_entidade_exige_mfa_recente(): void
+    {
+        // Super-admin com MFA confirmado, mas SEM verificação recente (step-up):
+        // a criação/edição/desativação de entidades deve ser barrada (403).
+        $u = User::factory()->create(['tenant_id' => null]);
+        $u->assignRole('super-admin');
+        $u->forceFill([
+            'two_factor_secret' => app(\App\Services\TwoFactorService::class)->gerarSegredo(),
+            'two_factor_confirmed_at' => now(),
+            'mfa_recent_at' => null,
+        ])->save();
+
+        $t = Tenant::factory()->create();
+
+        $this->actingAs($u)
+            ->postJson('/api/tenants', ['nome' => 'Sem step-up'])
+            ->assertForbidden();
+
+        $this->actingAs($u)
+            ->putJson("/api/tenants/{$t->id}", ['nome' => 'Sem step-up'])
+            ->assertForbidden();
+
+        // A leitura continua permitida (índice/detalhe não exigem step-up).
+        $this->actingAs($u)->getJson('/api/tenants')->assertOk();
+    }
 }

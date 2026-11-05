@@ -5,6 +5,8 @@ namespace Tests\Feature\Tenancy;
 use App\Models\Tenant;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Tests\TestCase;
 
 class TenantUserMigrationTest extends TestCase
@@ -13,19 +15,20 @@ class TenantUserMigrationTest extends TestCase
 
     public function test_migracao_copia_tenant_id_legado_para_pivo(): void
     {
-        // Simula o estado pós-migração: um usuário com tenant_id legado que
-        // ganhou vínculo em tenant_user (como a migração faz no up()).
+        // Exercita de verdade o backfill da migração: recria a tabela do zero
+        // (como no primeiro `up()`), com um usuário que só tinha a coluna legada
+        // preenchida, e confere que o vínculo (N:N) foi criado pela migração.
         $tenant = Tenant::factory()->create();
         $u = User::factory()->create(['tenant_id' => $tenant->id]);
 
-        // A migração já rodou no banco de teste; replicamos a cópia de dados
-        // exercitando o mesmo caminho usado por ela e conferimos o resultado.
-        \Illuminate\Support\Facades\DB::table('tenant_user')->insertOrIgnore([
-            'tenant_id' => $tenant->id,
-            'user_id' => $u->id,
-            'created_at' => now(),
-            'updated_at' => now(),
-        ]);
+        // Remove o estado criado pelo `comTenant`/migração anterior para que o
+        // único vínculo possível venha do backfill que vamos reexecutar.
+        DB::table('tenant_user')->where('user_id', $u->id)->delete();
+        Schema::drop('tenant_user');
+
+        // Reexecuta a migração: cria a tabela e copia users.tenant_id → pivô.
+        $migracao = require database_path('migrations/2026_11_04_130000_create_tenant_user_table.php');
+        $migracao->up();
 
         $this->assertDatabaseHas('tenant_user', [
             'tenant_id' => $tenant->id,
