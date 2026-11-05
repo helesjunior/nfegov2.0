@@ -178,4 +178,53 @@ XML;
         $this->assertSame(0, Nfe::withoutGlobalScopes()->count());
         $this->assertSame(50, Nsu::withoutGlobalScopes()->where('unidade_id', $unidade->id)->value('ultimo_nsu'));
     }
+
+    /**
+     * A SEFAZ avança o NSU em lotes VAZIOS (cStat 137) até chegar aos
+     * documentos. Parar no primeiro lote vazio impediria o download quando o
+     * histórico é grande (ex.: maxNSU=23921, documentos começam depois de
+     * centenas de consultas). O laço deve CONTINUAR pelos lotes vazios até
+     * maxNSU (ou até o teto de iterações).
+     */
+    public function test_avanca_por_lotes_vazios_ate_encontrar_documento(): void
+    {
+        Storage::fake('local');
+
+        $unidade = $this->unidade();
+        $chave = str_repeat('4', 44);
+        $run = SyncRun::factory()->create(['tenant_id' => $unidade->tenant_id, 'unidade_id' => $unidade->id]);
+
+        $client = \Mockery::mock(SefazClient::class);
+
+        // Três lotes VAZIOS avançando o NSU, depois um lote COM documento.
+        $client->shouldReceive('distDFe')
+            ->withArgs(fn ($u, $ultNsu) => $ultNsu === 0)
+            ->once()
+            ->andReturn($this->envelope([], 50, 200));
+
+        $client->shouldReceive('distDFe')
+            ->withArgs(fn ($u, $ultNsu) => $ultNsu === 50)
+            ->once()
+            ->andReturn($this->envelope([], 100, 200));
+
+        $client->shouldReceive('distDFe')
+            ->withArgs(fn ($u, $ultNsu) => $ultNsu === 100)
+            ->once()
+            ->andReturn($this->envelope([
+                ['nsu' => 150, 'schema' => 'procNFe', 'conteudo' => $this->docZip($this->xmlNfeProc($chave))],
+            ], 150, 200));
+
+        $client->shouldReceive('distDFe')
+            ->withArgs(fn ($u, $ultNsu) => $ultNsu === 150)
+            ->once()
+            ->andReturn($this->envelope([], 200, 200));
+
+        app()->instance(SefazClient::class, $client);
+
+        app(DistDfeService::class)->sync($unidade, $run);
+
+        // O documento lá no NSU 150 foi baixado.
+        $this->assertNotNull(Nfe::withoutGlobalScopes()->where('chave', $chave)->first());
+        $this->assertSame(200, Nsu::withoutGlobalScopes()->where('unidade_id', $unidade->id)->value('ultimo_nsu'));
+    }
 }

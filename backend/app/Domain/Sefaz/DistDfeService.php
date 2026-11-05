@@ -3,12 +3,9 @@
 namespace App\Domain\Sefaz;
 
 use App\Domain\Nfe\NfeImporter;
-use App\Domain\Nfe\XmlStore;
-use App\Models\Nfe;
 use App\Models\Nsu;
 use App\Models\SyncRun;
 use App\Models\Unidade;
-use Illuminate\Support\Facades\DB;
 use Throwable;
 
 /**
@@ -33,8 +30,7 @@ class DistDfeService
         private readonly ManifestacaoService $manifestacao,
         private readonly DownloadService $download,
         private readonly SefazGuard $guard,
-    ) {
-    }
+    ) {}
 
     /**
      * Executa o ciclo de sincronização de uma unidade, atualizando `$run`.
@@ -86,6 +82,7 @@ class DistDfeService
                     return;
                 }
 
+                $nsuPrevio = $ultimoNsu;
                 $envelope['ultNSU'] > $ultimoNsu && $ultimoNsu = (int) $envelope['ultNSU'];
 
                 foreach ($envelope['docs'] as $doc) {
@@ -103,8 +100,18 @@ class DistDfeService
                     'dh_resp' => now(),
                 ])->save();
 
-                // Nada novo: encerra o laço.
-                if ($ultimoNsu >= (int) $envelope['maxNSU'] || empty($envelope['docs'])) {
+                // A SEFAZ avança o NSU em lotes VAZIOS (cStat 137, "Nenhum documento
+                // localizado") até chegar aos documentos do contribuinte. Por
+                // isso NÃO se encerra no primeiro lote vazio — só quando
+                // alcançamos o maxNSU informado (ou o teto de iterações).
+                if ($ultimoNsu >= (int) $envelope['maxNSU']) {
+                    break;
+                }
+
+                // Segurança: se a SEFAZ não avançou o NSU (lote vazio e
+                // ultNSU estagnado), não há o que consumir — evita girar em
+                // vão até o teto de iterações.
+                if ($ultimoNsu <= $nsuPrevio && empty($envelope['docs'])) {
                     break;
                 }
 
@@ -168,7 +175,7 @@ class DistDfeService
 
     private function chaveDoResumo(string $xml): ?string
     {
-        $dom = new \DOMDocument();
+        $dom = new \DOMDocument;
         $dom->loadXML($xml);
         $xp = new \DOMXPath($dom);
         $xp->registerNamespace('nfe', 'http://www.portalfiscal.inf.br/nfe');
@@ -185,7 +192,7 @@ class DistDfeService
      */
     private function parseRetorno(string $xml): array
     {
-        $dom = new \DOMDocument();
+        $dom = new \DOMDocument;
         @$dom->loadXML($xml);
         $xp = new \DOMXPath($dom);
         $xp->registerNamespace('nfe', 'http://www.portalfiscal.inf.br/nfe');
