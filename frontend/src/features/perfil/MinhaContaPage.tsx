@@ -1,7 +1,9 @@
 import { useState, type FormEvent } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { mfaApi, perfilApi, mensagemDeErro } from '../../lib/api'
 import { useSessao } from '../auth/session'
+import { useStepUp } from '../auth/stepUp'
 
 /**
  * "Minha conta": o usuário logado edita os próprios dados e escolhe o MFA.
@@ -13,7 +15,9 @@ import { useSessao } from '../auth/session'
  */
 export function MinhaContaPage() {
   const queryClient = useQueryClient()
+  const navigate = useNavigate()
   const { usuario, recarregar } = useSessao()
+  const { desafiar } = useStepUp()
 
   const [name, setName] = useState(usuario?.name ?? '')
   const [email, setEmail] = useState(usuario?.email ?? '')
@@ -269,6 +273,24 @@ export function MinhaContaPage() {
               setCodigo={setCodigoAtivar}
             />
           </>
+        )}
+
+        {!usuario.mfa_pendente && (
+          <div style={{ marginTop: '1rem' }}>
+            <p style={{ color: 'var(--cor-texto-suave)' }}>
+              Operações sensíveis pedem uma verificação recente. Renove aqui antes de começar.
+            </p>
+            <button
+              type="button"
+              className="botao botao--secundario"
+              onClick={() => {
+                desafiar('/minha-conta')
+                navigate('/mfa')
+              }}
+            >
+              Renovar verificação de segurança
+            </button>
+          </div>
         )}
       </section>
     </div>

@@ -26,7 +26,15 @@ vi.mock('../auth/session', () => ({
   useSessao: () => ({ usuario: usuarioAtual, recarregar: vi.fn() }),
 }))
 
+const navigateMock = vi.fn()
+vi.mock('react-router-dom', async () => {
+  const actual = await vi.importActual<typeof import('react-router-dom')>('react-router-dom')
+  return { ...actual, useNavigate: () => navigateMock }
+})
+
 import { MinhaContaPage } from './MinhaContaPage'
+import { useStepUp } from '../auth/stepUp'
+import { renderHook, act } from '@testing-library/react'
 
 function renderizar() {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } })
@@ -39,9 +47,24 @@ function renderizar() {
 
 describe('MinhaContaPage', () => {
   beforeEach(() => {
+    navigateMock.mockReset()
     atualizarMock.mockReset().mockResolvedValue(usuarioBase)
     trocarSenhaMock.mockReset().mockResolvedValue(usuarioBase)
     desabilitarMock.mockReset().mockResolvedValue({ ...usuarioBase, mfa_confirmado: false })
+
+    const { result } = renderHook(() => useStepUp())
+    act(() => result.current.limparTudo())
+  })
+
+  it('renovar verificação define retorno para /minha-conta e navega para /mfa', async () => {
+    const user = userEvent.setup()
+    renderizar()
+
+    await user.click(screen.getByRole('button', { name: /renovar verificação/i }))
+
+    expect(navigateMock).toHaveBeenCalledWith('/mfa')
+    const { result } = renderHook(() => useStepUp())
+    expect(result.current.usarRotaRetorno()).toBe('/minha-conta')
   })
 
   it('mostra campo de senha atual apenas quando o e-mail muda', async () => {
