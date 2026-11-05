@@ -34,9 +34,7 @@ export function MinhaContaPage() {
   const [erro, setErro] = useState<string | null>(null)
   const [sucesso, setSucesso] = useState<string | null>(null)
 
-  if (!usuario) return null
-
-  const emailMudou = email !== usuario.email
+  const emailMudou = usuario ? email !== usuario.email : false
 
   async function aposSucesso(mensagem: string) {
     setSucesso(mensagem)
@@ -110,6 +108,8 @@ export function MinhaContaPage() {
     setSucesso(null)
     trocarSenha.mutate()
   }
+
+  if (!usuario) return null
 
   return (
     <div className="pagina">

@@ -21,11 +21,13 @@ export function TenantsPage() {
   const [rascunho, setRascunho] = useState<Rascunho | null>(null)
 
   // Ao montar, retoma um rascunho deixado por um desafio de step-up. O consumo
-  // acontece em efeito (não no initializer) por causa do StrictMode.
+  // acontece em efeito (não no initializer) por causa do StrictMode; aqui
+  // sincronizamos com o singleton externo (falso positivo da regra).
   useEffect(() => {
     const pendente = consumirRascunho('tenant')
     if (!pendente) return
 
+    // oxlint-disable-next-line react/set-state-in-effect
     setRascunho(pendente)
     setEditando(
       pendente.modo === 'editar' && pendente.id
