@@ -88,4 +88,40 @@ describe('SeletorEntidade', () => {
     await waitFor(() => expect(select.value).toBe('2'))
     expect(select.selectedOptions[0].textContent).toBe('Entidade 2')
   })
+
+  it('reflete a escolha IMEDIATAMENTE, mesmo com /me lento (não reverte para o valor antigo)', async () => {
+    const user = userEvent.setup()
+    renderizar()
+
+    const select = await screen.findByRole('combobox', { name: /entidade/i }) as HTMLSelectElement
+    expect(select.value).toBe('')
+
+    // O servidor leva um tempo para refletir a troca: o `/me` da recarga fica
+    // PENDENTE. Com um `<select>` totalmente controlado pelo `/me`, a seleção
+    // do usuário seria revertida para o valor anterior enquanto o fetch não
+    // responde — este é o bug relatado ("não seleciona a opção").
+    trocarMock.mockImplementation(async () => ({ tenant_ativo: { id: 2, nome: 'Entidade 2' } }))
+    meMock.mockImplementationOnce(() => new Promise(() => {}))
+
+    await user.selectOptions(select, '2')
+
+    // Sem esperar o `/me`, a UI JÁ deve mostrar a entidade escolhida.
+    await waitFor(() => expect(select.value).toBe('2'))
+    expect(select.selectedOptions[0].textContent).toBe('Entidade 2')
+  })
+
+  it('em falha do servidor, descarta a escolha otimista e volta ao valor da sessão', async () => {
+    const user = userEvent.setup()
+    renderizar()
+
+    const select = await screen.findByRole('combobox', { name: /entidade/i }) as HTMLSelectElement
+    expect(select.value).toBe('')
+
+    trocarMock.mockRejectedValueOnce(new Error('falhou'))
+
+    await user.selectOptions(select, '2')
+
+    // Reverte para o valor real da sessão (ainda "Todas").
+    await waitFor(() => expect(select.value).toBe(''))
+  })
 })
