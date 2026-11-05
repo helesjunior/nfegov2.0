@@ -122,4 +122,52 @@ class ProfileApiTest extends TestCase
 
         $this->actingAs($u)->getJson('/api/me')->assertOk();
     }
+
+    private function comMfa(User $u): string
+    {
+        $secret = app(\App\Services\TwoFactorService::class)->gerarSegredo();
+        $u->forceFill(['two_factor_secret' => $secret, 'two_factor_confirmed_at' => now()])->save();
+
+        return $secret;
+    }
+
+    public function test_operador_desabilita_mfa_com_codigo_valido(): void
+    {
+        $u = $this->operador();
+        $secret = $this->comMfa($u);
+        $codigo = app(\App\Services\TwoFactorService::class)->codigoAtual($secret);
+
+        $this->actingAs($u)->deleteJson('/api/me/mfa', ['code' => $codigo])
+            ->assertOk()
+            ->assertJsonPath('user.mfa_confirmado', false);
+
+        $this->assertNull($u->fresh()->two_factor_confirmed_at);
+        $this->assertNull($u->fresh()->two_factor_secret);
+    }
+
+    public function test_codigo_invalido_nao_desabilita(): void
+    {
+        $u = $this->operador();
+        $this->comMfa($u);
+
+        $this->actingAs($u)->deleteJson('/api/me/mfa', ['code' => '000000'])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors('code');
+
+        $this->assertNotNull($u->fresh()->two_factor_confirmed_at);
+    }
+
+    public function test_papel_obrigatorio_nao_pode_desabilitar(): void
+    {
+        $tenant = Tenant::factory()->create();
+        $u = User::factory()->comTenant($tenant)->create(['password' => Hash::make('senha12345')]);
+        $u->assignRole(['admin-tenant']);
+        $secret = $this->comMfa($u);
+        $codigo = app(\App\Services\TwoFactorService::class)->codigoAtual($secret);
+
+        $this->actingAs($u)->deleteJson('/api/me/mfa', ['code' => $codigo])
+            ->assertForbidden();
+
+        $this->assertNotNull($u->fresh()->two_factor_confirmed_at);
+    }
 }

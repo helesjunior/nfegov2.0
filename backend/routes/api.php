@@ -52,6 +52,8 @@ Route::middleware('web')->group(function () {
             ->name('api.me.update');
         Route::put('/me/password', [\App\Http\Controllers\Api\ProfileController::class, 'updatePassword'])
             ->name('api.me.password');
+        Route::delete('/me/mfa', [\App\Http\Controllers\Api\ProfileController::class, 'destroyMfa'])
+            ->name('api.me.mfa.destroy');
 
         Route::prefix('mfa')->group(function () {
             Route::post('/setup', [MfaController::class, 'setup'])->name('api.mfa.setup');
