@@ -79,4 +79,47 @@ class ProfileApiTest extends TestCase
         $this->actingAs($u)->putJson('/api/me', ['name' => 'Ainda Acesso', 'email' => $u->email])
             ->assertOk();
     }
+
+    public function test_troca_senha_exige_senha_atual_correta(): void
+    {
+        $u = $this->operador();
+
+        $this->actingAs($u)->putJson('/api/me/password', [
+            'current_password' => 'errada',
+            'password' => 'novaSenha123',
+            'password_confirmation' => 'novaSenha123',
+        ])->assertStatus(422)->assertJsonValidationErrors('current_password');
+
+        $this->actingAs($u)->putJson('/api/me/password', [
+            'current_password' => 'senha12345',
+            'password' => 'novaSenha123',
+            'password_confirmation' => 'novaSenha123',
+        ])->assertOk();
+
+        $this->assertTrue(Hash::check('novaSenha123', $u->fresh()->password));
+    }
+
+    public function test_nova_senha_precisa_ser_confirmada(): void
+    {
+        $u = $this->operador();
+
+        $this->actingAs($u)->putJson('/api/me/password', [
+            'current_password' => 'senha12345',
+            'password' => 'novaSenha123',
+            'password_confirmation' => 'divergente',
+        ])->assertStatus(422)->assertJsonValidationErrors('password');
+    }
+
+    public function test_continua_autenticado_apos_trocar_a_senha(): void
+    {
+        $u = $this->operador();
+
+        $this->actingAs($u)->putJson('/api/me/password', [
+            'current_password' => 'senha12345',
+            'password' => 'novaSenha123',
+            'password_confirmation' => 'novaSenha123',
+        ])->assertOk();
+
+        $this->actingAs($u)->getJson('/api/me')->assertOk();
+    }
 }

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\UpdatePasswordRequest;
 use App\Http\Requests\UpdateProfileRequest;
 use App\Services\UserPresenter;
 use Illuminate\Http\JsonResponse;
@@ -24,6 +25,15 @@ class ProfileController extends Controller
     {
         $user = $request->user();
         $user->fill($request->safe()->only(['name', 'email']))->save();
+
+        return response()->json(['user' => $this->presenter->paraUsuario($user->fresh(), $this->preferencia($request))]);
+    }
+
+    public function updatePassword(UpdatePasswordRequest $request): JsonResponse
+    {
+        $user = $request->user();
+        // O cast `password => hashed` do model aplica o hash ao atribuir.
+        $user->fill(['password' => $request->validated('password')])->save();
 
         return response()->json(['user' => $this->presenter->paraUsuario($user->fresh(), $this->preferencia($request))]);
     }
