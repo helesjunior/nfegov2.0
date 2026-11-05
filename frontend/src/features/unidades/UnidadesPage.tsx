@@ -1,8 +1,9 @@
-import { useState, type FormEvent } from 'react'
-import { Link } from 'react-router-dom'
+import { useEffect, useState, type FormEvent } from 'react'
+import { Link, useNavigate } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { mensagemDeErro, unidadesApi, type NovaUnidade, type Unidade } from '../../lib/api'
+import { ehErroDeStepUp, mensagemDeErro, unidadesApi, type NovaUnidade, type Unidade } from '../../lib/api'
 import { formatarCnpj, rotularAmbiente } from '../../lib/format'
+import { useStepUp, type Rascunho } from '../auth/stepUp'
 
 /**
  * Lista de unidades gestoras da entidade + criação/edição.
@@ -12,9 +13,28 @@ import { formatarCnpj, rotularAmbiente } from '../../lib/format'
  * A entidade (`tenant_id`) da unidade é fixa — nunca é editável aqui.
  */
 export function UnidadesPage() {
+  const queryClient = useQueryClient()
+  const { consumirRascunho, foiRenovado } = useStepUp()
   const [pagina, setPagina] = useState(1)
   const [formAberto, setFormAberto] = useState(false)
   const [editando, setEditando] = useState<Unidade | null>(null)
+  // Rascunho restaurado após um step-up (form reaberto e preenchido).
+  const [rascunho, setRascunho] = useState<Rascunho | null>(null)
+
+  // Ao montar, retoma um rascunho deixado por um desafio de step-up. O consumo
+  // acontece em efeito (não no initializer) por causa do StrictMode.
+  useEffect(() => {
+    const pendente = consumirRascunho('unidade')
+    if (!pendente) return
+
+    setRascunho(pendente)
+    setEditando(
+      pendente.modo === 'editar' && pendente.id
+        ? (buscarUnidadeNoCache(queryClient, pendente.id) ?? null)
+        : null,
+    )
+    setFormAberto(true)
+  }, [consumirRascunho, queryClient])
 
   const { data, isLoading, isError } = useQuery({
     queryKey: ['unidades', pagina],
@@ -23,6 +43,12 @@ export function UnidadesPage() {
 
   return (
     <div>
+      {foiRenovado && (
+        <div className="alerta alerta--info" role="status">
+          Verificação de segurança renovada. Confira os dados e clique em Salvar para concluir.
+        </div>
+      )}
+
       <div className="pagina-topo">
         <h1>Unidades</h1>
         <button
@@ -30,6 +56,7 @@ export function UnidadesPage() {
           className="botao"
           onClick={() => {
             setEditando(null)
+            setRascunho(null)
             setFormAberto((v) => !v)
           }}
         >
@@ -41,14 +68,17 @@ export function UnidadesPage() {
         <NovaUnidadeForm
           key={editando?.id ?? 'novo'}
           unidadeEmEdicao={editando ?? undefined}
+          rascunhoInicial={rascunho ?? undefined}
           onConcluida={() => {
             setFormAberto(false)
             setEditando(null)
+            setRascunho(null)
             setPagina(1)
           }}
           onCancelar={() => {
             setFormAberto(false)
             setEditando(null)
+            setRascunho(null)
           }}
         />
       )}
@@ -157,9 +187,29 @@ function StatusCertificado({ unidade }: { unidade: Unidade }) {
   return <span className="selo selo--ok">{c.dias_restantes} dias</span>
 }
 
+/**
+ * Recupera a unidade de uma página já carregada no cache do react-query.
+ *
+ * Usado ao restaurar um rascunho de edição; se não achar, o formulário abre no
+ * modo criação com os dados do rascunho.
+ */
+function buscarUnidadeNoCache(
+  queryClient: ReturnType<typeof useQueryClient>,
+  id: number,
+): Unidade | null {
+  const entradas = queryClient.getQueriesData<{ data: Unidade[] }>({ queryKey: ['unidades'] })
+  for (const [, valor] of entradas) {
+    const achado = valor?.data.find((u) => u.id === id)
+    if (achado) return achado
+  }
+  return null
+}
+
 /** Ação de ativar/desativar uma unidade, com confirmação antes da mudança. */
 function BotaoAtivo({ unidade }: { unidade: Unidade }) {
   const queryClient = useQueryClient()
+  const navigate = useNavigate()
+  const { desafiar } = useStepUp()
   const [erro, setErro] = useState<string | null>(null)
 
   const alternar = useMutation({
@@ -167,7 +217,14 @@ function BotaoAtivo({ unidade }: { unidade: Unidade }) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['unidades'] })
     },
-    onError: (e) => setErro(mensagemDeErro(e)),
+    onError: (e) => {
+      if (ehErroDeStepUp(e)) {
+        desafiar('/unidades')
+        navigate('/mfa')
+        return
+      }
+      setErro(mensagemDeErro(e))
+    },
   })
 
   function aoClicar() {
@@ -206,21 +263,32 @@ function BotaoAtivo({ unidade }: { unidade: Unidade }) {
  */
 function NovaUnidadeForm({
   unidadeEmEdicao,
+  rascunhoInicial,
   onConcluida,
   onCancelar,
 }: {
   unidadeEmEdicao?: Unidade
+  rascunhoInicial?: Rascunho
   onConcluida: () => void
   onCancelar: () => void
 }) {
   const queryClient = useQueryClient()
+  const navigate = useNavigate()
+  const { desafiar } = useStepUp()
   const editando = Boolean(unidadeEmEdicao)
 
-  const [nome, setNome] = useState(unidadeEmEdicao?.nome ?? '')
-  const [nomeResumido, setNomeResumido] = useState(unidadeEmEdicao?.nome_resumido ?? '')
-  const [cnpj, setCnpj] = useState(unidadeEmEdicao?.cnpj ?? '')
-  const [uf, setUf] = useState(unidadeEmEdicao?.uf ?? '')
-  const [tpAmb, setTpAmb] = useState<1 | 2>(unidadeEmEdicao?.tp_amb === 1 ? 1 : 2)
+  // O rascunho (quando existe) tem precedência sobre os valores salvos: ele
+  // representa o que o usuário tinha digitado antes do desafio de step-up.
+  const d = rascunhoInicial?.dados ?? {}
+  const [nome, setNome] = useState((d.nome as string) ?? unidadeEmEdicao?.nome ?? '')
+  const [nomeResumido, setNomeResumido] = useState(
+    (d.nome_resumido as string) ?? unidadeEmEdicao?.nome_resumido ?? '',
+  )
+  const [cnpj, setCnpj] = useState((d.cnpj as string) ?? unidadeEmEdicao?.cnpj ?? '')
+  const [uf, setUf] = useState((d.uf as string) ?? unidadeEmEdicao?.uf ?? '')
+  const [tpAmb, setTpAmb] = useState<1 | 2>(
+    (d.tp_amb as 1 | 2) ?? (unidadeEmEdicao?.tp_amb === 1 ? 1 : 2),
+  )
   const [erro, setErro] = useState<string | null>(null)
 
   const salvar = useMutation({
@@ -232,7 +300,19 @@ function NovaUnidadeForm({
       queryClient.invalidateQueries({ queryKey: ['unidades'] })
       onConcluida()
     },
-    onError: (e) => setErro(mensagemDeErro(e)),
+    onError: (e) => {
+      if (ehErroDeStepUp(e)) {
+        desafiar('/unidades', {
+          origem: 'unidade',
+          modo: editando ? 'editar' : 'criar',
+          id: unidadeEmEdicao?.id,
+          dados: { nome, nome_resumido: nomeResumido, cnpj, uf, tp_amb: tpAmb },
+        })
+        navigate('/mfa')
+        return
+      }
+      setErro(mensagemDeErro(e))
+    },
   })
 
   function aoEnviar(evento: FormEvent) {
