@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { nfeApi, unidadesApi, mensagemDeErro, type FiltrosNfe } from '../../lib/api'
 import { formatarCnpj, formatarData, formatarMoeda } from '../../lib/format'
+import { NfeBuscaForm } from './NfeBuscaForm'
 
 /**
  * Lista de NF-e recebidas, com filtros e exportação.
@@ -72,6 +73,7 @@ export function NfeListPage() {
     <div>
       <div className="pagina-topo">
         <h1>NF-e</h1>
+        <NfeBuscaForm />
       </div>
 
       <form className="filtros" onSubmit={aplicar} noValidate>

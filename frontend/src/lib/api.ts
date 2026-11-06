@@ -484,6 +484,20 @@ export const nfeApi = {
     const { data } = await http.post<{ message: string }>('/nfes/export-xml', filtros)
     return data.message
   },
+
+  /**
+   * Recuperação manual de uma NF-e já consumida da fila do DistDFe.
+   * Informe `chave` OU `nsu` (nunca os dois). Retorna imediatamente (202):
+   * a busca roda em segundo plano e o usuário é notificado ao final.
+   */
+  async recuperar(payload: {
+    unidade_id: number
+    chave?: string
+    nsu?: number
+  }): Promise<string> {
+    const { data } = await http.post<{ message: string }>('/nfes/recuperar', payload)
+    return data.message
+  },
 }
 
 // ---- Notificações -----------------------------------------------------------
@@ -492,7 +506,14 @@ export interface Notificacao {
   id: string
   lida: boolean
   criada_em: string | null
-  dados: { caminho?: string; formato?: string; total?: number }
+  dados: {
+    tipo?: 'exportacao' | 'recuperacao'
+    mensagem?: string
+    status?: string
+    caminho?: string
+    formato?: string
+    total?: number
+  }
   url_download: string | null
 }
 

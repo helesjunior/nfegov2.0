@@ -80,11 +80,16 @@ function LinhaNotificacao({
 }) {
   const { dados } = notificacao
 
+  const texto =
+    dados.tipo === 'recuperacao'
+      ? (dados.mensagem ?? 'Busca de NF-e concluída.')
+      : `Exportação ${dados.formato ?? ''} pronta (${dados.total ?? 0} registro(s)).`
+
   return (
     <tr style={{ fontWeight: notificacao.lida ? 'normal' : 600 }}>
       <td>{formatarDataHora(notificacao.criada_em)}</td>
       <td>
-        Exportação {dados.formato ?? ''} pronta ({dados.total ?? 0} registro(s)).
+        {texto}
         {!notificacao.lida && <span className="selo selo--alerta"> nova</span>}
       </td>
       <td style={{ display: 'flex', gap: 'var(--esp-2)' }}>
