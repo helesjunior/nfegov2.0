@@ -35,4 +35,39 @@ class SpedSefazClientTest extends TestCase
 
         $this->assertSame('<retDistDFeInt/>', $client->distDFeCom($tools, $unidade, 123));
     }
+
+    public function test_dist_dfe_por_nsu_usa_consnsu(): void
+    {
+        $unidade = new Unidade(['uf' => 'DF', 'cnpj' => '00101980000119', 'tp_amb' => 1]);
+
+        $tools = \Mockery::mock(Tools::class);
+        $tools->shouldReceive('sefazDistDFe')
+            ->once()
+            ->with(0, 12345, '', 'AN')
+            ->andReturn('<retDistDFeInt/>');
+
+        $factory = \Mockery::mock(ToolsFactory::class);
+
+        $client = new SpedSefazClient($factory);
+
+        $this->assertSame('<retDistDFeInt/>', $client->distDFePorNsuCom($tools, $unidade, 12345));
+    }
+
+    public function test_dist_dfe_por_chave_usa_conschnfe(): void
+    {
+        $chave = str_repeat('9', 44);
+        $unidade = new Unidade(['uf' => 'DF', 'cnpj' => '00101980000119', 'tp_amb' => 1]);
+
+        $tools = \Mockery::mock(Tools::class);
+        $tools->shouldReceive('sefazDistDFe')
+            ->once()
+            ->with(0, 0, $chave, 'AN')
+            ->andReturn('<retDistDFeInt/>');
+
+        $factory = \Mockery::mock(ToolsFactory::class);
+
+        $client = new SpedSefazClient($factory);
+
+        $this->assertSame('<retDistDFeInt/>', $client->distDFePorChaveCom($tools, $unidade, $chave));
+    }
 }

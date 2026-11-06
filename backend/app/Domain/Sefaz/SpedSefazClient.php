@@ -33,6 +33,32 @@ class SpedSefazClient implements SefazClient
         return (string) $tools->sefazDistDFe($ultimoNsu, 0, '', 'AN');
     }
 
+    public function distDFePorNsu(Unidade $unidade, int $nsu): string
+    {
+        return $this->distDFePorNsuCom($this->factory->make($unidade), $unidade, $nsu);
+    }
+
+    public function distDFePorNsuCom(Tools $tools, Unidade $unidade, int $nsu): string
+    {
+        // (ultNSU=0, numNSU=$nsu, chave='', fonte='AN') — consulta por NSU
+        // específico (`consNSU`).
+        return (string) $tools->sefazDistDFe(0, $nsu, '', 'AN');
+    }
+
+    public function distDFePorChave(Unidade $unidade, string $chave): string
+    {
+        return $this->distDFePorChaveCom($this->factory->make($unidade), $unidade, $chave);
+    }
+
+    public function distDFePorChaveCom(Tools $tools, Unidade $unidade, string $chave): string
+    {
+        $chave = preg_replace('/\D/', '', $chave);
+
+        // (ultNSU=0, numNSU=0, chave=$chave, fonte='AN') — consulta por chave
+        // de acesso (`consChNFe`).
+        return (string) $tools->sefazDistDFe(0, 0, $chave, 'AN');
+    }
+
     public function manifestarCiencia(Unidade $unidade, string $chave): bool
     {
         $tools = $this->factory->make($unidade);

@@ -20,6 +20,22 @@ interface SefazClient
     public function distDFe(Unidade $unidade, int $ultimoNsu): string;
 
     /**
+     * Consulta por um NSU ESPECÍFICO (`consNSU`). Devolve o `retDistDFeInt`
+     * cru. Usada para recuperar um documento já consumido da fila, sem tocar
+     * o cursor incremental da unidade.
+     *
+     * Atenção: NSU 0 NÃO é uma consulta por NSU (o sped-nfe cai para a
+     * varredura incremental); use valores >= 1.
+     */
+    public function distDFePorNsu(Unidade $unidade, int $nsu): string;
+
+    /**
+     * Consulta pela CHAVE de acesso (`consChNFe`). Devolve o `retDistDFeInt`
+     * cru. Sem Ciência prévia pode devolver apenas o resumo.
+     */
+    public function distDFePorChave(Unidade $unidade, string $chave): string;
+
+    /**
      * Manifesta ciência da operação (evento 210210). Devolve true em sucesso.
      */
     public function manifestarCiencia(Unidade $unidade, string $chave): bool;
