@@ -7,6 +7,7 @@ use App\Http\Controllers\Api\ExportController;
 use App\Http\Controllers\Api\ExportDownloadController;
 use App\Http\Controllers\Api\MfaController;
 use App\Http\Controllers\Api\NfeController;
+use App\Http\Controllers\Api\NfeRecuperacaoController;
 use App\Http\Controllers\Api\NotificationController;
 use App\Http\Controllers\Api\SyncRunController;
 use App\Http\Controllers\Api\UnidadeController;
@@ -78,6 +79,11 @@ Route::middleware('web')->group(function () {
         // Exportações assíncronas (CSV/XLSX e ZIP de XMLs).
         Route::post('/nfes/export', [ExportController::class, 'store'])->name('api.nfes.export');
         Route::post('/nfes/export-xml', [ExportController::class, 'xml'])->name('api.nfes.export-xml');
+
+        // Recuperação manual de NF-e (por chave ou NSU). Exige `sync.executar`;
+        // a rota fica ANTES de `/nfes/{chave}` para não colidir com o binding.
+        Route::post('/nfes/recuperar', [NfeRecuperacaoController::class, 'store'])
+            ->name('api.nfes.recuperar');
 
         // Unidades gestoras.
         Route::get('/unidades', [UnidadeController::class, 'index'])->name('api.unidades.index');
