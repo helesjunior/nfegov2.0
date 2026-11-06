@@ -107,6 +107,15 @@ class RecuperacaoService
         // Tentativa 3: varredura incremental procurando a chave (sem tocar o cursor).
         $achou = $this->varrerPorChave($unidade, $chave);
 
+        // `null` = bloqueada no meio (656 / circuit breaker): não é "não existe".
+        if ($achou === null) {
+            return ResultadoRecuperacao::de(
+                ResultadoRecuperacao::BLOQUEADO,
+                0,
+                'A SEFAZ recusou novas consultas (consumo indevido). Tente novamente mais tarde.',
+            );
+        }
+
         return $achou
             ? ResultadoRecuperacao::de(ResultadoRecuperacao::ENCONTRADO, 1)
             : ResultadoRecuperacao::de(
@@ -213,8 +222,10 @@ class RecuperacaoService
      * documento com a chave. NUNCA grava o cursor: usa o valor em memória e
      * descarta ao fim. Respeita `MAX_ITERACOES_VARREDURA` para não virar um
      * gerador de cStat 656.
+     *
+     * @return bool|null true = achou; false = não achou; null = bloqueada (656).
      */
-    private function varrerPorChave(Unidade $unidade, string $chave): bool
+    private function varrerPorChave(Unidade $unidade, string $chave): ?bool
     {
         $nsuLocal = Nsu::withoutGlobalScopes()
             ->where('unidade_id', $unidade->id)
@@ -227,17 +238,19 @@ class RecuperacaoService
             try {
                 $this->guard->beforeCall($unidade);
             } catch (Throwable) {
-                return false;
+                return null;
             }
 
             $envelope = $this->consultar(fn () => $this->client->distDFe($unidade, $ultimoNsu));
 
-            if ($envelope === null || $envelope['cStat'] === '656') {
-                if ($envelope !== null) {
-                    $this->guard->tripCircuitBreaker($unidade);
-                }
-
+            if ($envelope === null) {
                 return false;
+            }
+
+            if ($envelope['cStat'] === '656') {
+                $this->guard->tripCircuitBreaker($unidade);
+
+                return null;
             }
 
             foreach ($envelope['docs'] as $doc) {

@@ -211,4 +211,28 @@ class RecuperacaoServiceTest extends TestCase
         $this->assertSame(ResultadoRecuperacao::NAO_ENCONTRADO, $r->status);
         $this->assertSame(0, Nfe::withoutGlobalScopes()->count());
     }
+
+    public function test_por_chave_com_656_na_varredura_retorna_bloqueado(): void
+    {
+        Storage::fake('local');
+        $unidade = $this->unidade();
+        Nsu::factory()->create([
+            'tenant_id' => $unidade->tenant_id,
+            'unidade_id' => $unidade->id,
+            'ultimo_nsu' => 23921,
+            'max_nsu' => 23921,
+        ]);
+
+        $client = \Mockery::mock(SefazClient::class);
+        $client->shouldReceive('distDFePorChave')->times(2)->andReturn($this->envelope([], '137', 0, 0));
+        $client->shouldReceive('manifestarCiencia')->once()->andReturn(true);
+        // A varredura é recusada pela SEFAZ (consumo indevido).
+        $client->shouldReceive('distDFe')->once()->andReturn($this->envelope([], '656', 0, 0));
+        app()->instance(SefazClient::class, $client);
+
+        $r = app(RecuperacaoService::class)->porChave($unidade, str_repeat('6', 44));
+
+        // Bloqueio NÃO pode ser mascarado como "documento não existe".
+        $this->assertSame(ResultadoRecuperacao::BLOQUEADO, $r->status);
+    }
 }
