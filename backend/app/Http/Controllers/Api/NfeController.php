@@ -34,8 +34,7 @@ class NfeController extends Controller
     public function __construct(
         private readonly XmlStore $store,
         private readonly NfeQuery $query,
-    ) {
-    }
+    ) {}
 
     public function index(IndexNfeRequest $request): AnonymousResourceCollection
     {
@@ -101,10 +100,9 @@ class NfeController extends Controller
 
         $xml = $this->store->get($nfe->xml_path);
 
-        $danfe = new Danfe($xml);
-        $danfe->exibirTextoFatura(false);
-
-        $pdf = $danfe->pdf();
+        // A sped-da (v1.x) expõe o PDF via `render()`; `pdf()`/`exibirTextoFatura()`
+        // não existem nesta versão e derrubavam a geração com "undefined method".
+        $pdf = (new Danfe($xml))->render();
 
         // Geração de DANFE também é um acesso sensível auditável.
         $this->audit('nfe.danfe.gerado', [], 'nfe', $nfe->chave, $request->user(), $request);

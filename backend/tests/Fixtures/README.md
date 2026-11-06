@@ -27,3 +27,10 @@ error:0308010C:digital envelope routines::unsupported
 O `cert_e_cnpj_legacy.pfx` reproduz exatamente esse cenário e garante
 (regressão) que o ambiente mantém o provider `legacy` ativo — ver
 `tests/Feature/Certificate/CertificadoLegadoTest.php`.
+
+## `nfe_autorizada.xml`
+
+Um `nfeProc` COMPLETO e real (autorizado) usado para exercitar a geração de
+DANFE (PDF) de ponta a ponta pelo endpoint `/api/nfes/{chave}/danfe`. É versionado
+porque não contém segredos (é um documento fiscal público) e permite testar a
+renderização real da `sped-da` sem tocar a SEFAZ.

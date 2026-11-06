@@ -6,6 +6,7 @@ use App\Models\Nfe;
 use App\Models\Tenant;
 use App\Models\Unidade;
 use App\Models\User;
+use Database\Seeders\RolesSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\URL;
@@ -26,7 +27,7 @@ class NfeApiTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->seed(\Database\Seeders\RolesSeeder::class);
+        $this->seed(RolesSeeder::class);
     }
 
     private function usuarioDoTenant(Tenant $tenant, string $papel = 'operador'): User
@@ -180,6 +181,56 @@ class NfeApiTest extends TestCase
         $semPapel = User::factory()->comTenant($tenant)->create();
 
         $this->actingAs($semPapel)->getJson('/api/nfes')->assertForbidden();
+    }
+
+    /**
+     * O DANFE (PDF) é gerado a partir do XML completo. Regressão: o controller
+     * chamava métodos inexistentes na sped-da (`exibirTextoFatura`/`pdf`) e a
+     * geração estourava com "Call to undefined method".
+     */
+    public function test_gera_danfe_em_pdf_a_partir_do_xml_completo(): void
+    {
+        Storage::fake('local');
+
+        $tenant = Tenant::factory()->create();
+        $unidade = Unidade::factory()->create(['tenant_id' => $tenant->id]);
+
+        $xml = (string) file_get_contents(base_path('tests/Fixtures/nfe_autorizada.xml'));
+
+        $nfe = Nfe::factory()->create([
+            'tenant_id' => $tenant->id,
+            'unidade_id' => $unidade->id,
+            'chave' => '53261008353835000307550020000014051729330115',
+            'estado' => Nfe::ESTADO_COMPLETO,
+            'xml_path' => 'tenants/'.$tenant->id.'/unidades/'.$unidade->id.'/nfes/nfe.xml',
+        ]);
+        Storage::disk('local')->put($nfe->xml_path, $xml);
+
+        $user = $this->usuarioDoTenant($tenant);
+
+        $resp = $this->actingAs($user)->get('/api/nfes/'.$nfe->chave.'/danfe');
+
+        $resp->assertOk();
+        $this->assertSame('application/pdf', $resp->headers->get('Content-Type'));
+        $this->assertStringStartsWith('%PDF', $resp->getContent());
+    }
+
+    public function test_danfe_sem_xml_resulta_404(): void
+    {
+        Storage::fake('local');
+
+        $tenant = Tenant::factory()->create();
+        $unidade = Unidade::factory()->create(['tenant_id' => $tenant->id]);
+        $nfe = Nfe::factory()->create([
+            'tenant_id' => $tenant->id,
+            'unidade_id' => $unidade->id,
+            'estado' => Nfe::ESTADO_RESUMO,
+            'xml_path' => null,
+        ]);
+
+        $this->actingAs($this->usuarioDoTenant($tenant))
+            ->get('/api/nfes/'.$nfe->chave.'/danfe')
+            ->assertNotFound();
     }
 
     private function chave(): string
