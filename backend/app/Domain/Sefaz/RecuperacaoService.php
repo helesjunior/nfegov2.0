@@ -281,24 +281,24 @@ class RecuperacaoService
     {
         try {
             $xml = $this->decoder->decode($doc['conteudo']);
+
+            $dom = new \DOMDocument;
+            @$dom->loadXML($xml);
+            $xp = new \DOMXPath($dom);
+            $xp->registerNamespace('nfe', 'http://www.portalfiscal.inf.br/nfe');
+
+            $chNFe = preg_replace('/\D/', '', (string) $xp->query('//nfe:chNFe')->item(0)?->nodeValue);
+            if (strlen($chNFe) === 44) {
+                return $chNFe === $chave;
+            }
+
+            $id = (string) $xp->query('//nfe:infNFe')->item(0)?->attributes?->getNamedItem('Id')?->nodeValue;
+            $id = preg_replace('/\D/', '', $id);
+
+            return strlen($id) === 44 && $id === $chave;
         } catch (Throwable) {
             return false;
         }
-
-        $dom = new \DOMDocument;
-        @$dom->loadXML($xml);
-        $xp = new \DOMXPath($dom);
-        $xp->registerNamespace('nfe', 'http://www.portalfiscal.inf.br/nfe');
-
-        $chNFe = preg_replace('/\D/', '', (string) $xp->query('//nfe:chNFe')->item(0)?->nodeValue);
-        if (strlen($chNFe) === 44) {
-            return $chNFe === $chave;
-        }
-
-        $id = (string) $xp->query('//nfe:infNFe')->item(0)?->attributes?->getNamedItem('Id')?->nodeValue;
-        $id = preg_replace('/\D/', '', $id);
-
-        return strlen($id) === 44 && $id === $chave;
     }
 
     private function contarNfes(Unidade $unidade): int
