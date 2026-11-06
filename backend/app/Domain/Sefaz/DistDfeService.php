@@ -61,7 +61,7 @@ class DistDfeService
                 $this->guard->beforeCall($unidade);
 
                 $retorno = $this->client->distDFe($unidade, $ultimoNsu);
-                $envelope = $this->parseRetorno($retorno);
+                $envelope = (new EnvelopeDistDfe)->parse($retorno);
 
                 // cStat 656 (consumo indevido): abre o circuit breaker GLOBAL
                 // e para imediatamente — protege o IP de todas as unidades.
@@ -145,26 +145,6 @@ class DistDfeService
      */
     private function parseRetorno(string $xml): array
     {
-        $dom = new \DOMDocument;
-        @$dom->loadXML($xml);
-        $xp = new \DOMXPath($dom);
-        $xp->registerNamespace('nfe', 'http://www.portalfiscal.inf.br/nfe');
-
-        $docs = [];
-        foreach ($xp->query('//nfe:loteDistDFeInt/nfe:docZip') as $node) {
-            $docs[] = [
-                'nsu' => (int) $node->attributes->getNamedItem('NSU')?->nodeValue,
-                'schema' => (string) $node->attributes->getNamedItem('schema')?->nodeValue,
-                'conteudo' => trim($node->nodeValue),
-            ];
-        }
-
-        return [
-            'cStat' => (string) $xp->query('//nfe:cStat')->item(0)?->nodeValue,
-            'xMotivo' => (string) $xp->query('//nfe:xMotivo')->item(0)?->nodeValue,
-            'ultNSU' => (int) $xp->query('//nfe:ultNSU')->item(0)?->nodeValue,
-            'maxNSU' => (int) $xp->query('//nfe:maxNSU')->item(0)?->nodeValue,
-            'docs' => $docs,
-        ];
+        return (new EnvelopeDistDfe)->parse($xml);
     }
 }
