@@ -11,6 +11,8 @@ use App\Models\SyncRun;
 use App\Models\Tenant;
 use App\Models\Unidade;
 use App\Models\User;
+use App\Services\TwoFactorService;
+use Database\Seeders\RolesSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
@@ -45,7 +47,7 @@ class SyncFlowTest extends TestCase
     {
         parent::setUp();
 
-        $this->seed(\Database\Seeders\RolesSeeder::class);
+        $this->seed(RolesSeeder::class);
 
         // Disco privado isolado: XMLs, PFX e exports vão para um fake.
         Storage::fake('local');
@@ -80,7 +82,7 @@ class SyncFlowTest extends TestCase
         $admin = User::factory()->comTenant($this->tenant)->create();
         $admin->assignRole('admin-tenant');
         $admin->forceFill([
-            'two_factor_secret' => app(\App\Services\TwoFactorService::class)->gerarSegredo(),
+            'two_factor_secret' => app(TwoFactorService::class)->gerarSegredo(),
             'two_factor_confirmed_at' => now(),
             'mfa_recent_at' => now(),
         ])->save();
@@ -159,11 +161,13 @@ XML;
         $client = \Mockery::mock(SefazClient::class);
 
         // 1ª rodada: a SEFAZ devolve apenas o RESUMO (resNFe).
+        // Os schemas usam o rótulo REAL de produção (`_vX.YZ.xsd`) — era
+        // exatamente isso que impedia qualquer importação antes.
         $client->shouldReceive('distDFe')
             ->withArgs(fn ($u, $ultNsu) => $ultNsu === 0)
             ->once()
             ->andReturn($this->envelope([
-                ['nsu' => 1, 'schema' => 'resNFe', 'conteudo' => $this->docZip($this->xmlResNFe($chave))],
+                ['nsu' => 1, 'schema' => 'resNFe_v1.01.xsd', 'conteudo' => $this->docZip($this->xmlResNFe($chave))],
             ], 1, 1));
 
         // O sistema dá CIÊNCIA da operação automaticamente.
@@ -223,5 +227,46 @@ XML;
         $this->assertNotNull($url);
         $this->assertStringContainsString('signature=', (string) $url);
         $this->get($url)->assertOk();
+    }
+
+    /**
+     * Regressão do caso reportado: o sync baixou documentos (`procNFe`) mas
+     * NADA apareceu na lista. O schema de produção vem com sufixo
+     * (`procNFe_v4.00.xsd`) e era descartado. Aqui garantimos que um documento
+     * COMPLETO entregue direto pela fila é importado e aparece na API.
+     */
+    public function test_sync_importa_procnfe_com_schema_de_producao(): void
+    {
+        $this->enviarCertificado();
+
+        $chave = str_repeat('7', 44);
+
+        $client = \Mockery::mock(SefazClient::class);
+        $client->shouldReceive('distDFe')
+            ->withArgs(fn ($u, $ultNsu) => $ultNsu === 0)
+            ->once()
+            ->andReturn($this->envelope([
+                ['nsu' => 5, 'schema' => 'procNFe_v4.00.xsd', 'conteudo' => $this->docZip($this->xmlNfeProc($chave))],
+            ], 5, 5));
+        // Documento completo não precisa de Ciência nem download.
+        $client->shouldReceive('manifestarCiencia')->never();
+        $client->shouldReceive('baixarPorChave')->never();
+        app()->instance(SefazClient::class, $client);
+
+        DispatchSyncNfeJob::dispatchSync();
+
+        $nfe = Nfe::withoutGlobalScopes()->where('chave', $chave)->first();
+        $this->assertNotNull($nfe, 'A NF-e completa deveria ter sido importada.');
+        $this->assertSame(Nfe::ESTADO_COMPLETO, $nfe->estado);
+        $this->assertNotNull($nfe->xml_path);
+        $this->assertTrue(Storage::disk('local')->exists($nfe->xml_path));
+
+        $lista = $this->actingAs($this->operador)->getJson('/api/nfes');
+        $lista->assertOk();
+        $this->assertSame(1, $lista->json('meta.total'));
+
+        $run = SyncRun::withoutGlobalScopes()->where('unidade_id', $this->unidade->id)->latest('id')->first();
+        $this->assertSame(SyncRun::STATUS_SUCESSO, $run->status);
+        $this->assertSame(1, $run->docs_count);
     }
 }
