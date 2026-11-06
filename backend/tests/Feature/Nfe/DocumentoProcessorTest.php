@@ -73,6 +73,52 @@ class DocumentoProcessorTest extends TestCase
         $this->assertSame(0, Nfe::withoutGlobalScopes()->count());
     }
 
+    /**
+     * A SEFAZ em PRODUÇÃO envia o schema com sufixo de versão
+     * (`procNFe_v4.00.xsd`, `resNFe_v1.01.xsd`), não o nome "puro".
+     */
+    public function test_procnfe_com_sufixo_de_versao_importa(): void
+    {
+        Storage::fake('local');
+        $unidade = Unidade::factory()->create(['tenant_id' => Tenant::factory()->create()->id]);
+        $chave = str_repeat('4', 44);
+
+        app(DocumentoProcessor::class)->processar(
+            $unidade,
+            null,
+            $this->doc($this->xmlNfeProc($chave), 'procNFe_v4.00.xsd'),
+        );
+
+        $nfe = Nfe::withoutGlobalScopes()->where('chave', $chave)->first();
+        $this->assertNotNull($nfe);
+        $this->assertSame(Nfe::ESTADO_COMPLETO, $nfe->estado);
+    }
+
+    public function test_resumo_com_sufixo_de_versao_dispara_ciencia_e_baixa_completo(): void
+    {
+        Storage::fake('local');
+        $unidade = Unidade::factory()->create(['tenant_id' => Tenant::factory()->create()->id]);
+        $chave = str_repeat('5', 44);
+
+        $manifestacao = \Mockery::mock(ManifestacaoService::class);
+        $manifestacao->shouldReceive('ciencia')->once()->withArgs(fn ($u, $c) => $c === $chave)->andReturn(true);
+        app()->instance(ManifestacaoService::class, $manifestacao);
+
+        $download = \Mockery::mock(DownloadService::class);
+        $download->shouldReceive('porChave')->once()->andReturn($this->xmlNfeProc($chave));
+        app()->instance(DownloadService::class, $download);
+
+        app(DocumentoProcessor::class)->processar(
+            $unidade,
+            null,
+            $this->doc($this->xmlResumo($chave), 'resNFe_v1.01.xsd'),
+        );
+
+        $nfe = Nfe::withoutGlobalScopes()->where('chave', $chave)->first();
+        $this->assertNotNull($nfe);
+        $this->assertSame(Nfe::ESTADO_COMPLETO, $nfe->estado);
+    }
+
     public function test_resumo_dispara_ciencia_e_baixa_completo(): void
     {
         Storage::fake('local');

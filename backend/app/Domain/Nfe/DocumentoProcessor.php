@@ -36,7 +36,12 @@ class DocumentoProcessor
     {
         $xml = $this->decoder->decode($doc['conteudo']);
 
-        if ($doc['schema'] === 'resNFe') {
+        // Em PRODUÇÃO a SEFAZ rotula o schema com sufixo de versão/arquivo
+        // (ex.: `procNFe_v4.00.xsd`, `resNFe_v1.01.xsd`); em testes vem o nome
+        // "puro" (`procNFe`). Normalizamos para comparar de forma estável.
+        $schema = $this->schemaBase($doc['schema']);
+
+        if ($schema === 'resNFe') {
             $this->importer->importResumo($unidade, $nsu, $xml);
 
             // Ciência da operação + reconsulta do XML completo.
@@ -54,9 +59,22 @@ class DocumentoProcessor
         }
 
         // procNFe / nfeProc: documentos de NF-e são importados.
-        if (in_array($doc['schema'], ['procNFe', 'nfeProc'], true)) {
+        if (in_array($schema, ['procNFe', 'nfeProc'], true)) {
             $this->importer->import($unidade, $nsu, $xml);
         }
+    }
+
+    /**
+     * Reduz o rótulo do schema à sua raiz, descartando versão e extensão:
+     * `procNFe_v4.00.xsd` → `procNFe`; `resNFe` → `resNFe`.
+     */
+    private function schemaBase(string $schema): string
+    {
+        // Remove extensão `.xsd` e o sufixo `_vX.YZ`.
+        $schema = preg_replace('/\.xsd$/i', '', $schema);
+        $schema = preg_replace('/_v\d+.*$/i', '', $schema);
+
+        return $schema;
     }
 
     private function chaveDoResumo(string $xml): ?string
