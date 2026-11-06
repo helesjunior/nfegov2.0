@@ -1,7 +1,7 @@
 # Diagnóstico: recuperação manual de NF-e não encontra nota que está na fila
 
 **Data:** 2026-11-06
-**Status:** causa raiz identificada; aguardando confirmação empírica final (SEFAZ 656).
+**Status:** corrigido e **confirmado de ponta a ponta em produção** (NF-e importada).
 **Caso:** NF-e `53261008353835000307550020000014051729330115`
 
 ## Sintoma
@@ -73,3 +73,40 @@ contrário e precisa ser corrigido.
 - Só NF-e (eventos ficam para depois).
 - Sem libs novas; multitenancy (`tenant_id` + global scope); execução assíncrona.
 - Evitar rajadas (risco de cStat 656).
+
+---
+
+## ADENDO — Causa raiz de 2º nível (a mais importante), confirmada
+
+Ao validar a correção em produção, o sync normal da unidade 17 consumiu a fila
+(`23921 → 23925`, `docs=4`) mas importou **0 NF-es**. Investigando, descobriu-se
+que o `DocumentoProcessor` comparava o schema do `docZip` por **igualdade exata**:
+
+```php
+if ($doc['schema'] === 'resNFe') { ... }
+if (in_array($doc['schema'], ['procNFe', 'nfeProc'], true)) { ... }
+```
+
+Mas a SEFAZ em **produção** rotula o schema com sufixo de versão/arquivo:
+
+- `procNFe_v4.00.xsd`
+- `resNFe_v1.01.xsd`
+
+Resultado: **nenhum documento do distDFe era processado** (nem resumo nem
+completo). Isso explica por que a unidade 17 (e qualquer unidade) **nunca
+importou nada automaticamente**, apesar do cursor avançar. Os testes usavam o
+schema "puro" (`procNFe`/`resNFe`), por isso nunca detectaram o bug.
+
+Correção [672dfeb]: `DocumentoProcessor::schemaBase()` normaliza o rótulo
+(`procNFe_v4.00.xsd` → `procNFe`; `resNFe_v1.01.xsd` → `resNFe`) antes de comparar.
+
+### Verificação de ponta a ponta (sucesso)
+
+Recuperação por NSU 23922 (`consNSU`, sem tocar o cursor):
+
+- `status=encontrado docs=1`; cursor **inalterado** em 23925.
+- NF-e importada: chave `53261008353835000307550020000014051729330115`,
+  estado `completo`, vNF `122.87`, emit `08353835000307`, dest `00101980000119`.
+- XML gravado em `tenants/19/unidades/17/nfes/2026/10/<chave>.xml` (16.487 bytes).
+
+Suíte backend: **245 passed / 642 asserções**.
