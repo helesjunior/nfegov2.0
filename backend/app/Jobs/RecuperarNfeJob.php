@@ -22,7 +22,7 @@ use Illuminate\Foundation\Queue\Queueable;
  * - Revalida certificado vigente e circuit breaker (igual ao `SyncNfeJob`).
  * - Roda no `TenantContext` da unidade e NOTIFICA o solicitante ao final.
  */
-class RecuperarNfeJob implements ShouldQueue, ShouldBeUnique
+class RecuperarNfeJob implements ShouldBeUnique, ShouldQueue
 {
     use Queueable;
 

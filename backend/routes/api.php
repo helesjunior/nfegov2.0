@@ -9,8 +9,12 @@ use App\Http\Controllers\Api\MfaController;
 use App\Http\Controllers\Api\NfeController;
 use App\Http\Controllers\Api\NfeRecuperacaoController;
 use App\Http\Controllers\Api\NotificationController;
+use App\Http\Controllers\Api\ProfileController;
+use App\Http\Controllers\Api\SessaoTenantController;
 use App\Http\Controllers\Api\SyncRunController;
+use App\Http\Controllers\Api\TenantController;
 use App\Http\Controllers\Api\UnidadeController;
+use App\Http\Controllers\Api\UserController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -43,17 +47,17 @@ Route::middleware('web')->group(function () {
         Route::get('/me', [AuthController::class, 'me'])->name('api.me');
         Route::post('/logout', [AuthController::class, 'logout'])->name('api.logout');
 
-        Route::post('/sessao/tenant', [\App\Http\Controllers\Api\SessaoTenantController::class, 'update'])
+        Route::post('/sessao/tenant', [SessaoTenantController::class, 'update'])
             ->name('api.sessao.tenant');
 
         // Área de perfil do próprio usuário ("Minha conta"). Sem o middleware
         // `mfa`: quem ainda não confirmou o segundo fator precisa acessar a
         // própria área para configurá-lo.
-        Route::put('/me', [\App\Http\Controllers\Api\ProfileController::class, 'update'])
+        Route::put('/me', [ProfileController::class, 'update'])
             ->name('api.me.update');
-        Route::put('/me/password', [\App\Http\Controllers\Api\ProfileController::class, 'updatePassword'])
+        Route::put('/me/password', [ProfileController::class, 'updatePassword'])
             ->name('api.me.password');
-        Route::delete('/me/mfa', [\App\Http\Controllers\Api\ProfileController::class, 'destroyMfa'])
+        Route::delete('/me/mfa', [ProfileController::class, 'destroyMfa'])
             ->name('api.me.mfa.destroy');
 
         Route::prefix('mfa')->group(function () {
@@ -107,10 +111,10 @@ Route::middleware('web')->group(function () {
             ->name('api.exports.download');
 
         // Usuários (gestão). Escopo N:N resolvido no controller/policy.
-        Route::get('/usuarios', [\App\Http\Controllers\Api\UserController::class, 'index'])->name('api.usuarios.index');
-        Route::post('/usuarios', [\App\Http\Controllers\Api\UserController::class, 'store'])->name('api.usuarios.store');
-        Route::put('/usuarios/{usuario}', [\App\Http\Controllers\Api\UserController::class, 'update'])->name('api.usuarios.update');
-        Route::put('/usuarios/{usuario}/ativo', [\App\Http\Controllers\Api\UserController::class, 'ativo'])->name('api.usuarios.ativo');
+        Route::get('/usuarios', [UserController::class, 'index'])->name('api.usuarios.index');
+        Route::post('/usuarios', [UserController::class, 'store'])->name('api.usuarios.store');
+        Route::put('/usuarios/{usuario}', [UserController::class, 'update'])->name('api.usuarios.update');
+        Route::put('/usuarios/{usuario}/ativo', [UserController::class, 'ativo'])->name('api.usuarios.ativo');
     });
 
     // Operações SENSÍVEIS: exigem MFA recente (step-up).
@@ -121,14 +125,14 @@ Route::middleware('web')->group(function () {
 
     // Administração de plataforma: Entidades (só super-admin, MFA confirmado).
     Route::middleware(['auth:sanctum', 'mfa'])->group(function () {
-        Route::get('/tenants', [\App\Http\Controllers\Api\TenantController::class, 'index'])->name('api.tenants.index');
-        Route::get('/tenants/{tenant}', [\App\Http\Controllers\Api\TenantController::class, 'show'])->name('api.tenants.show');
+        Route::get('/tenants', [TenantController::class, 'index'])->name('api.tenants.index');
+        Route::get('/tenants/{tenant}', [TenantController::class, 'show'])->name('api.tenants.show');
     });
 
     // Mutações de plataforma: exigem MFA RECENTE (step-up), conforme o design.
     Route::middleware(['auth:sanctum', 'mfa', 'mfa.recent'])->group(function () {
-        Route::post('/tenants', [\App\Http\Controllers\Api\TenantController::class, 'store'])->name('api.tenants.store');
-        Route::put('/tenants/{tenant}', [\App\Http\Controllers\Api\TenantController::class, 'update'])->name('api.tenants.update');
-        Route::put('/tenants/{tenant}/ativo', [\App\Http\Controllers\Api\TenantController::class, 'ativo'])->name('api.tenants.ativo');
+        Route::post('/tenants', [TenantController::class, 'store'])->name('api.tenants.store');
+        Route::put('/tenants/{tenant}', [TenantController::class, 'update'])->name('api.tenants.update');
+        Route::put('/tenants/{tenant}/ativo', [TenantController::class, 'ativo'])->name('api.tenants.ativo');
     });
 });

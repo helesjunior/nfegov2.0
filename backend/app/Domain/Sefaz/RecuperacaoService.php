@@ -3,6 +3,7 @@
 namespace App\Domain\Sefaz;
 
 use App\Domain\Nfe\DocumentoProcessor;
+use App\Models\Nfe;
 use App\Models\Unidade;
 use Throwable;
 
@@ -101,7 +102,7 @@ class RecuperacaoService
 
     private function contarNfes(Unidade $unidade): int
     {
-        return \App\Models\Nfe::withoutGlobalScopes()
+        return Nfe::withoutGlobalScopes()
             ->where('unidade_id', $unidade->id)
             ->count();
     }

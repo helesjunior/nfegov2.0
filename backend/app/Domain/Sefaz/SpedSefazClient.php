@@ -13,9 +13,7 @@ use NFePHP\NFe\Tools;
  */
 class SpedSefazClient implements SefazClient
 {
-    public function __construct(private readonly ToolsFactory $factory)
-    {
-    }
+    public function __construct(private readonly ToolsFactory $factory) {}
 
     public function distDFe(Unidade $unidade, int $ultimoNsu): string
     {

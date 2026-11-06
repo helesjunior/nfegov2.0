@@ -6,6 +6,7 @@ use App\Jobs\RecuperarNfeJob;
 use App\Models\Tenant;
 use App\Models\Unidade;
 use App\Models\User;
+use Database\Seeders\RolesSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Queue;
 use Tests\TestCase;
@@ -28,7 +29,7 @@ class RecuperarNfeApiTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->seed(\Database\Seeders\RolesSeeder::class);
+        $this->seed(RolesSeeder::class);
     }
 
     private function usuarioDoTenant(Tenant $tenant, string $papel): User
