@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { nfeApi, unidadesApi, mensagemDeErro } from '../../lib/api'
+import { useSessao } from '../auth/session'
 
 type Modo = 'chave' | 'nsu'
 
@@ -12,6 +13,7 @@ type Modo = 'chave' | 'nsu'
  * (202) e o usuário é avisado em Notificações ao terminar.
  */
 export function NfeBuscaForm() {
+  const { usuario } = useSessao()
   const [aberto, setAberto] = useState(false)
   const [modo, setModo] = useState<Modo>('chave')
   const [unidadeId, setUnidadeId] = useState('')
@@ -47,6 +49,15 @@ export function NfeBuscaForm() {
   function enviar(evento: FormEvent) {
     evento.preventDefault()
     recuperar.mutate()
+  }
+
+  // Só quem pode executar sincronizações vê o gatilho (o backend rejeita com
+  // 403 de qualquer forma; assim evitamos oferecer uma ação que falharia).
+  const podeBuscar =
+    usuario?.papeis.includes('super-admin') || usuario?.permissoes.includes('sync.executar')
+
+  if (!podeBuscar) {
+    return null
   }
 
   if (!aberto) {

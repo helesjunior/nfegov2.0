@@ -7,7 +7,6 @@ use App\Http\Requests\RecuperarNfeRequest;
 use App\Jobs\RecuperarNfeJob;
 use App\Models\Concerns\Auditable;
 use App\Models\Unidade;
-use Illuminate\Bus\UniqueLock;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Gate;
@@ -54,20 +53,16 @@ class NfeRecuperacaoController extends Controller
 
         $job = new RecuperarNfeJob($unidade->id, $user->id, $chave, $nsu);
 
-        // Pedido idêntico em andamento: 409 em vez de um segundo job. O próprio
-        // `ShouldBeUnique` do job é a guarda real; aqui só damos um retorno
-        // honesto ao usuário. A chave coincide com a do framework (`UniqueLock`),
-        // e a sonda é não-destrutiva: se livre, o lock é liberado na hora e o
-        // job re-adquire ao ser enfileirado.
-        $lock = Cache::lock(UniqueLock::getKey($job), $job->uniqueFor);
-
-        if (! $lock->get()) {
+        // Idempotência: um pedido idêntico em andamento recebe 409 em vez de um
+        // segundo job (que agravaria o consumo na SEFAZ). `Cache::add` é ATÔMICO,
+        // ao contrário da sonda lock-get-release (que tinha uma janela de corrida).
+        // O job libera esta chave ao terminar. O `ShouldBeUnique` do job segue
+        // como defesa adicional no nível da fila.
+        if (! Cache::add($job->chaveIdempotencia(), true, $job->uniqueFor)) {
             return response()->json([
                 'message' => 'Já existe uma busca igual em andamento. Aguarde a conclusão.',
             ], 409);
         }
-
-        $lock->release();
 
         dispatch($job);
 

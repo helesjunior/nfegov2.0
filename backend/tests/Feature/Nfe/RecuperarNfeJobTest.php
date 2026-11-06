@@ -11,6 +11,7 @@ use App\Models\Tenant;
 use App\Models\Unidade;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
@@ -103,5 +104,50 @@ class RecuperarNfeJobTest extends TestCase
 
         $client->shouldNotHaveReceived('distDFePorNsu');
         $this->assertNotNull($user->notifications()->first());
+    }
+
+    public function test_super_admin_sem_tenant_e_notificado(): void
+    {
+        Storage::fake('local');
+        $unidade = $this->unidadeComCertificado();
+
+        // Super-admin: `tenant_id` nulo (não vinculado à coluna legada). O job
+        // roda sob o tenant da UNIDADE, mas a notificação precisa alcançá-lo.
+        $superAdmin = User::factory()->create(['tenant_id' => null]);
+
+        $client = \Mockery::mock(SefazClient::class);
+        $client->shouldReceive('distDFePorNsu')->once()->andReturn($this->envelope('137'));
+        app()->instance(SefazClient::class, $client);
+
+        (new RecuperarNfeJob($unidade->id, $superAdmin->id, null, 999))->handle(
+            app(RecuperacaoService::class),
+            app(SefazGuard::class),
+        );
+
+        $this->assertNotNull(
+            $superAdmin->notifications()->first(),
+            'O solicitante sem tenant (super-admin) precisa ser notificado.',
+        );
+    }
+
+    public function test_libera_a_idempotencia_ao_encerrar(): void
+    {
+        Storage::fake('local');
+        $unidade = $this->unidadeComCertificado();
+        $user = User::factory()->comTenant($unidade->tenant_id)->create();
+
+        $client = \Mockery::mock(SefazClient::class);
+        $client->shouldReceive('distDFePorNsu')->once()->andReturn($this->envelope('137'));
+        app()->instance(SefazClient::class, $client);
+
+        $job = new RecuperarNfeJob($unidade->id, $user->id, null, 999);
+
+        // Simula a API tendo reservado a chave.
+        Cache::add($job->chaveIdempotencia(), true, 3600);
+
+        $job->handle(app(RecuperacaoService::class), app(SefazGuard::class));
+
+        // Ao terminar, a chave some: o usuário pode tentar novamente.
+        $this->assertFalse(Cache::has($job->chaveIdempotencia()));
     }
 }

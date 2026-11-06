@@ -12,6 +12,7 @@ use App\Support\TenantContext;
 use Illuminate\Contracts\Queue\ShouldBeUnique;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
+use Illuminate\Support\Facades\Cache;
 
 /**
  * Recupera MANUALMENTE uma NF-e que já passou pela fila do DistDFe.
@@ -42,14 +43,36 @@ class RecuperarNfeJob implements ShouldBeUnique, ShouldQueue
      */
     public function uniqueId(): string
     {
-        $parametro = $this->chave !== null
+        return 'recuperar-unidade-'.$this->parametroChave();
+    }
+
+    /**
+     * Chave de idempotência (cache) usada pela API para responder 409 a um
+     * pedido idêntico em andamento. Liberada ao fim da execução.
+     */
+    public function chaveIdempotencia(): string
+    {
+        return 'nfe.recuperacao.'.$this->parametroChave();
+    }
+
+    private function parametroChave(): string
+    {
+        return $this->chave !== null
             ? 'chave-'.sha1(preg_replace('/\D/', '', $this->chave))
             : 'nsu-'.$this->nsu;
-
-        return 'recuperar-unidade-'.$this->unidadeId.'-'.$parametro;
     }
 
     public function handle(RecuperacaoService $recuperacao, SefazGuard $guard): void
+    {
+        try {
+            $this->executar($recuperacao, $guard);
+        } finally {
+            // Libera a idempotência: o usuário pode tentar de novo após o fim.
+            Cache::forget($this->chaveIdempotencia());
+        }
+    }
+
+    private function executar(RecuperacaoService $recuperacao, SefazGuard $guard): void
     {
         $unidade = Unidade::withoutGlobalScopes()->find($this->unidadeId);
 
@@ -58,7 +81,10 @@ class RecuperarNfeJob implements ShouldBeUnique, ShouldQueue
         }
 
         TenantContext::runAs($unidade->tenant_id, function () use ($unidade, $recuperacao, $guard) {
-            $user = User::find($this->userId);
+            // SEM global scope: o solicitante pode ser super-admin (tenant_id
+            // nulo) ou multi-tenant, e o `runAs` aqui é o da UNIDADE — usar o
+            // escopo suprimiria a notificação. Mesma convenção do ExportNfeJob.
+            $user = User::withoutGlobalScopes()->find($this->userId);
 
             $parametro = $this->chave !== null
                 ? 'chave '.$this->chave

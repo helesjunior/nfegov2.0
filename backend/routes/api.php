@@ -84,8 +84,7 @@ Route::middleware('web')->group(function () {
         Route::post('/nfes/export', [ExportController::class, 'store'])->name('api.nfes.export');
         Route::post('/nfes/export-xml', [ExportController::class, 'xml'])->name('api.nfes.export-xml');
 
-        // Recuperação manual de NF-e (por chave ou NSU). Exige `sync.executar`;
-        // a rota fica ANTES de `/nfes/{chave}` para não colidir com o binding.
+        // Recuperação manual de NF-e (por chave ou NSU). Exige `sync.executar`.
         Route::post('/nfes/recuperar', [NfeRecuperacaoController::class, 'store'])
             ->name('api.nfes.recuperar');
 

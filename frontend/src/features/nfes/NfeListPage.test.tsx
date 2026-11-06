@@ -35,6 +35,15 @@ vi.mock('../../lib/api', async () => {
   }
 })
 
+vi.mock('../auth/session', () => ({
+  useSessao: () => ({
+    usuario: { id: 1, papeis: ['operador'], permissoes: ['nfe.view', 'sync.executar'] },
+    carregando: false,
+    autenticado: true,
+    recarregar: vi.fn(),
+  }),
+}))
+
 function renderPage() {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
