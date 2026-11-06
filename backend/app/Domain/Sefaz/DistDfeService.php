@@ -2,7 +2,7 @@
 
 namespace App\Domain\Sefaz;
 
-use App\Domain\Nfe\NfeImporter;
+use App\Domain\Nfe\DocumentoProcessor;
 use App\Models\Nsu;
 use App\Models\SyncRun;
 use App\Models\Unidade;
@@ -25,10 +25,7 @@ class DistDfeService
 {
     public function __construct(
         private readonly SefazClient $client,
-        private readonly DocZipDecoder $decoder,
-        private readonly NfeImporter $importer,
-        private readonly ManifestacaoService $manifestacao,
-        private readonly DownloadService $download,
+        private readonly DocumentoProcessor $processor,
         private readonly SefazGuard $guard,
     ) {}
 
@@ -86,7 +83,7 @@ class DistDfeService
                 $envelope['ultNSU'] > $ultimoNsu && $ultimoNsu = (int) $envelope['ultNSU'];
 
                 foreach ($envelope['docs'] as $doc) {
-                    $this->processarDoc($unidade, $nsu, $doc, $ultimoNsu);
+                    $this->processor->processar($unidade, $nsu, $doc);
                     $docs++;
 
                     if ($docs >= $maxDocs) {
@@ -139,50 +136,6 @@ class DistDfeService
         } finally {
             $nsu->forceFill(['ultimo_nsu' => $ultimoNsu, 'dh_resp' => now()])->save();
         }
-    }
-
-    /**
-     * Processa um documento do lote, conforme o schema.
-     *
-     * @param  array{nsu:int, schema:string, conteudo:string}  $doc
-     */
-    private function processarDoc(Unidade $unidade, Nsu $nsu, array $doc, int $nsuAtual): void
-    {
-        $xml = $this->decoder->decode($doc['conteudo']);
-
-        if ($doc['schema'] === 'resNFe') {
-            $this->importer->importResumo($unidade, $nsu, $xml);
-
-            // Ciência da operação + reconsulta do XML completo.
-            $chave = $this->chaveDoResumo($xml);
-            if ($chave) {
-                $this->manifestacao->ciencia($unidade, $chave);
-                $completo = $this->download->porChave($unidade, $chave);
-
-                if ($completo) {
-                    $this->importer->import($unidade, $nsu, $completo);
-                }
-            }
-
-            return;
-        }
-
-        // procNFe / nfeProc / resEvento: apenas documentos de NF-e são importados.
-        if (in_array($doc['schema'], ['procNFe', 'nfeProc'], true)) {
-            $this->importer->import($unidade, $nsu, $xml);
-        }
-    }
-
-    private function chaveDoResumo(string $xml): ?string
-    {
-        $dom = new \DOMDocument;
-        $dom->loadXML($xml);
-        $xp = new \DOMXPath($dom);
-        $xp->registerNamespace('nfe', 'http://www.portalfiscal.inf.br/nfe');
-
-        $chave = preg_replace('/\D/', '', (string) $xp->query('//nfe:chNFe')->item(0)?->nodeValue);
-
-        return strlen($chave) === 44 ? $chave : null;
     }
 
     /**
