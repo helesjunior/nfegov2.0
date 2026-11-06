@@ -77,6 +77,19 @@ class SpedSefazClient implements SefazClient
 
         $retorno = (string) $tools->sefazDownload($chave);
 
-        return $retorno !== '' ? $retorno : null;
+        if ($retorno === '') {
+            return null;
+        }
+
+        // O `sefazDownload` devolve o `retDistDFeInt` (envelope SOAP), com o XML
+        // completo DENTRO de um `docZip` (base64+gzip) — não o `nfeProc` cru.
+        // Decodificamos para entregar o documento que o `NfeImporter` espera.
+        $envelope = (new EnvelopeDistDfe)->parse($retorno);
+
+        if ($envelope['docs'] === []) {
+            return null;
+        }
+
+        return (new DocZipDecoder)->decode($envelope['docs'][0]['conteudo']);
     }
 }
