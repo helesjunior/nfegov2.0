@@ -122,6 +122,12 @@ class RecuperarNfeJob implements ShouldBeUnique, ShouldQueue
                 ? $recuperacao->porChave($unidade, $this->chave)
                 : $recuperacao->porNsu($unidade, (int) $this->nsu);
 
+            // Além do resgate pontual, consome a fila pelo caminho NORMAL
+            // (varredura incremental), que avança o cursor legítimo e importa
+            // o que ainda estiver pendente. `SyncNfeJob` é `ShouldBeUnique` por
+            // unidade e revalida certificado/circuito — sem risco de rajada.
+            SyncNfeJob::dispatch($unidade->id);
+
             $user?->notify(new RecuperacaoConcluida($parametro, $resultado));
         });
     }
