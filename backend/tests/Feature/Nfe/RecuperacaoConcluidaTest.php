@@ -30,4 +30,20 @@ class RecuperacaoConcluidaTest extends TestCase
         $n = new RecuperacaoConcluida('x', ResultadoRecuperacao::de(ResultadoRecuperacao::NAO_ENCONTRADO));
         $this->assertContains('database', $n->via(new \stdClass));
     }
+
+    public function test_mensagem_nao_encontrado_nao_pede_para_aguardar_ciencia(): void
+    {
+        $n = new RecuperacaoConcluida('chave x', ResultadoRecuperacao::de(
+            ResultadoRecuperacao::NAO_ENCONTRADO,
+            0,
+            'A SEFAZ não tem este documento na fila do destinatário.',
+        ));
+        $msg = $n->toArray(new \stdClass)['mensagem'];
+
+        // Honesta: diz que a SEFAZ não tem o documento e traz o motivo.
+        $this->assertStringContainsString('não tem este documento', $msg);
+        // E não sugere mais que a Ciência foi enviada.
+        $this->assertStringNotContainsString('Ciência', $msg);
+        $this->assertStringNotContainsString('enviada', $msg);
+    }
 }

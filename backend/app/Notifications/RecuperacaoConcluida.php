@@ -44,9 +44,11 @@ class RecuperacaoConcluida extends Notification
                 $this->resultado->docsCount,
             ),
             ResultadoRecuperacao::NAO_ENCONTRADO => sprintf(
-                'Busca de %s concluída, mas nenhum documento foi encontrado. '
-                .'Se você acabou de enviar a Ciência da Operação, o XML pode levar alguns minutos para ficar disponível — tente novamente.',
+                'Busca de %s concluída, mas o documento não foi encontrado: %s '
+                .'Se a nota é recente, o emitente pode ainda não tê-la disponibilizado à SEFAZ; '
+                .'caso contrário, confirme o destinatário com o emitente.',
                 $this->parametro,
+                $this->resultado->motivo ?? 'a SEFAZ não devolveu nenhum documento.',
             ),
             ResultadoRecuperacao::BLOQUEADO => sprintf(
                 'Busca de %s não realizada: a SEFAZ está temporariamente indisponível (freio de consumo). Tente novamente mais tarde.',
