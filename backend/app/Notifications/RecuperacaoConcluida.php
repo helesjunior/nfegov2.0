@@ -19,6 +19,7 @@ class RecuperacaoConcluida extends Notification
     public function __construct(
         public readonly string $parametro,
         public readonly ResultadoRecuperacao $resultado,
+        public readonly int $tentativas = 1,
     ) {}
 
     public function via(object $notifiable): array
@@ -37,6 +38,10 @@ class RecuperacaoConcluida extends Notification
 
     private function mensagem(): string
     {
+        $esgotado = $this->tentativas > 1
+            ? sprintf('Após %d tentativas automáticas, ', $this->tentativas)
+            : '';
+
         return match ($this->resultado->status) {
             ResultadoRecuperacao::ENCONTRADO => sprintf(
                 'Busca de %s concluída: %d nota(s) recuperada(s) e disponível(is) para consulta.',
@@ -44,9 +49,10 @@ class RecuperacaoConcluida extends Notification
                 $this->resultado->docsCount,
             ),
             ResultadoRecuperacao::NAO_ENCONTRADO => sprintf(
-                'Busca de %s concluída, mas o documento não foi encontrado: %s '
+                '%sbusca de %s não teve sucesso: %s '
                 .'Se a nota é recente, o emitente pode ainda não tê-la disponibilizado à SEFAZ; '
                 .'caso contrário, confirme o destinatário com o emitente.',
+                $esgotado,
                 $this->parametro,
                 $this->resultado->motivo ?? 'a SEFAZ não devolveu nenhum documento.',
             ),
@@ -55,7 +61,8 @@ class RecuperacaoConcluida extends Notification
                 $this->parametro,
             ),
             default => sprintf(
-                'Busca de %s falhou: %s',
+                '%sbusca de %s falhou: %s',
+                $esgotado,
                 $this->parametro,
                 $this->resultado->motivo ?? 'erro inesperado.',
             ),

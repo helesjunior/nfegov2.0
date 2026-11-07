@@ -46,4 +46,31 @@ class RecuperacaoConcluidaTest extends TestCase
         $this->assertStringNotContainsString('Ciência', $msg);
         $this->assertStringNotContainsString('enviada', $msg);
     }
+
+    public function test_mensagem_esgotada_apos_varias_tentativas(): void
+    {
+        $n = new RecuperacaoConcluida(
+            'chave x',
+            ResultadoRecuperacao::de(ResultadoRecuperacao::NAO_ENCONTRADO, 0, 'sem nota'),
+            4,
+        );
+
+        $msg = $n->toArray(new \stdClass)['mensagem'];
+
+        $this->assertStringContainsString('tentativa', $msg);
+        $this->assertStringContainsString('sem nota', $msg);
+    }
+
+    public function test_bloqueado_esgotado_fala_de_freio(): void
+    {
+        $n = new RecuperacaoConcluida(
+            'chave x',
+            ResultadoRecuperacao::de(ResultadoRecuperacao::BLOQUEADO, 0, '656'),
+            4,
+        );
+
+        $msg = $n->toArray(new \stdClass)['mensagem'];
+
+        $this->assertStringContainsString('indisponível', $msg);
+    }
 }
