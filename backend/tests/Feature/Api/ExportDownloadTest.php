@@ -118,4 +118,42 @@ class ExportDownloadTest extends TestCase
 
         $this->actingAs($this->operador)->get($url)->assertNotFound();
     }
+
+    /**
+     * Usuário com vínculo em duas entidades baixa a exportação da segunda
+     * pelo link da notificação, mesmo com a primeira como `users.tenant_id`.
+     */
+    public function test_baixa_exportacao_de_outra_entidade_vinculada(): void
+    {
+        Storage::fake('local');
+        $outra = Tenant::create(['nome' => 'OUTRA', 'cnpj' => '22222222222222', 'ativo' => true]);
+        $this->operador->tenants()->syncWithoutDetaching([$outra->id]);
+
+        Storage::disk('local')->put("exports/{$outra->id}/relatorio.csv", 'Chave,Numero'.PHP_EOL);
+        $this->operador->notify(new ExportPronto("exports/{$outra->id}/relatorio.csv", 'csv', 1));
+
+        $url = $this->actingAs($this->operador)
+            ->getJson('/api/notifications')
+            ->assertOk()
+            ->json('data.0.url_download');
+
+        $resp = $this->actingAs($this->operador)->get($url);
+
+        $resp->assertOk();
+        $this->assertStringContainsString('Chave,Numero', $resp->streamedContent());
+    }
+
+    public function test_link_assinado_de_entidade_sem_vinculo_retorna_404(): void
+    {
+        Storage::fake('local');
+        $outroTenant = Tenant::create(['nome' => 'OUTRO', 'cnpj' => '11111111111111', 'ativo' => true]);
+        Storage::disk('local')->put("exports/{$outroTenant->id}/sigiloso.csv", 'x');
+
+        $url = URL::temporarySignedRoute('api.exports.download', now()->addMinutes(10), [
+            'arquivo' => 'sigiloso.csv',
+            'tenant' => $outroTenant->id,
+        ]);
+
+        $this->actingAs($this->operador)->get($url)->assertNotFound();
+    }
 }

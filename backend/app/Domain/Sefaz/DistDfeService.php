@@ -80,15 +80,25 @@ class DistDfeService
                 }
 
                 $nsuPrevio = $ultimoNsu;
-                $envelope['ultNSU'] > $ultimoNsu && $ultimoNsu = (int) $envelope['ultNSU'];
 
+                // O cursor só avança DEPOIS de cada documento processado. Se o
+                // teto de documentos cortar o lote, ou se um documento falhar,
+                // o cursor fica no último documento gravado e a próxima
+                // execução retoma dali (nenhuma nota do lote é pulada).
                 foreach ($envelope['docs'] as $doc) {
                     $this->processor->processar($unidade, $nsu, $doc);
                     $docs++;
+                    $ultimoNsu = max($ultimoNsu, (int) $doc['nsu']);
 
                     if ($docs >= $maxDocs) {
                         break 2;
                     }
+                }
+
+                // Lote inteiro processado: avança até o ultNSU informado pela
+                // SEFAZ (cobre lotes vazios e lacunas de NSU).
+                if ((int) $envelope['ultNSU'] > $ultimoNsu) {
+                    $ultimoNsu = (int) $envelope['ultNSU'];
                 }
 
                 $nsu->forceFill([

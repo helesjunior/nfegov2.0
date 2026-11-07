@@ -108,4 +108,26 @@ describe('LoginPage', () => {
 
     await waitFor(() => expect(navigateMock).toHaveBeenCalledWith('/mfa'))
   })
+
+  it('pede o código do MFA quando o segundo fator já está ativo', async () => {
+    const user = userEvent.setup()
+    loginMock.mockResolvedValue({
+      user: {
+        id: 1,
+        name: 'Admin',
+        email: 'admin@orgao.gov.br',
+        mfa_pendente: false,
+        mfa_confirmado: true,
+        mfa_verificacao_pendente: true,
+      },
+    })
+
+    renderLogin()
+
+    await user.type(screen.getByLabelText(/e-?mail/i), 'admin@orgao.gov.br')
+    await user.type(screen.getByLabelText(/senha/i), 'segredo')
+    await user.click(screen.getByRole('button', { name: /entrar/i }))
+
+    await waitFor(() => expect(navigateMock).toHaveBeenCalledWith('/mfa'))
+  })
 })

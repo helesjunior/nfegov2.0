@@ -21,7 +21,8 @@ import { MinhaContaPage } from '../features/perfil/MinhaContaPage'
  * Enquanto `/api/me` não responde, mostra um placeholder. Sem usuário, manda
  * para o login. Se o MFA estiver pendente, força a tela de configuração —
  * exceto em `/minha-conta`, que é a própria área de configuração do usuário
- * (permite ativar o segundo fator de lá).
+ * (permite ativar o segundo fator de lá). Com MFA ativo e o código ainda não
+ * informado nesta sessão, também manda para `/mfa`.
  */
 function RotaProtegida({ children }: { children: React.ReactNode }) {
   const { carregando, autenticado, usuario } = useSessao()
@@ -36,6 +37,11 @@ function RotaProtegida({ children }: { children: React.ReactNode }) {
   }
 
   if (usuario?.mfa_pendente && local.pathname !== '/minha-conta') {
+    return <Navigate to="/mfa" replace />
+  }
+
+  // MFA ativo: depois da senha, o código precisa ser informado nesta sessão.
+  if (usuario?.mfa_verificacao_pendente) {
     return <Navigate to="/mfa" replace />
   }
 

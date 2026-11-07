@@ -62,6 +62,8 @@ export interface Usuario {
   mfa_pendente: boolean
   mfa_obrigatorio: boolean
   mfa_confirmado: boolean
+  /** MFA ativo, mas o código ainda não foi informado nesta sessão de login. */
+  mfa_verificacao_pendente?: boolean
 }
 
 export interface RespostaLogin {

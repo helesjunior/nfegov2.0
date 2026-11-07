@@ -40,6 +40,8 @@ class UserPresenter
             'mfa_obrigatorio' => $exigeMfa,
             'mfa_pendente' => $exigeMfa && ! $this->twoFactor->confirmado($user),
             'mfa_confirmado' => $this->twoFactor->confirmado($user),
+            // MFA ativo, mas o código ainda não foi informado nesta sessão.
+            'mfa_verificacao_pendente' => $this->twoFactor->verificacaoPendente($user),
         ];
     }
 }

@@ -106,6 +106,39 @@ class TwoFactorService
     /**
      * O usuário tem um MFA confirmado e utilizável?
      */
+    /**
+     * Chave de sessão que registra que o segundo fator foi informado nesta
+     * sessão de login (guarda o id do usuário verificado).
+     */
+    public const SESSAO_VERIFICADO = 'mfa_verificado_usuario';
+
+    /**
+     * Marca a sessão atual como verificada pelo segundo fator.
+     */
+    public function marcarVerificadoNaSessao(User $user): void
+    {
+        if (request()->hasSession()) {
+            request()->session()->put(self::SESSAO_VERIFICADO, $user->id);
+        }
+    }
+
+    /**
+     * O segundo fator já foi informado nesta sessão de login?
+     */
+    public function verificadoNaSessao(User $user): bool
+    {
+        return request()->hasSession()
+            && (int) request()->session()->get(self::SESSAO_VERIFICADO) === (int) $user->id;
+    }
+
+    /**
+     * O usuário tem MFA ativo e ainda precisa informar o código nesta sessão?
+     */
+    public function verificacaoPendente(User $user): bool
+    {
+        return $this->confirmado($user) && ! $this->verificadoNaSessao($user);
+    }
+
     public function confirmado(User $user): bool
     {
         return $user->two_factor_confirmed_at !== null

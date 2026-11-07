@@ -32,7 +32,8 @@ use Illuminate\Support\Facades\Route;
 | Camadas de proteção (nesta ordem):
 | - `auth:sanctum` : usuário autenticado por sessão.
 | - `tenant`       : define o tenant ativo (global scope `BelongsToTenant`).
-| - `mfa`          : papéis administrativos precisam ter o TOTP confirmado.
+| - `mfa`          : papéis administrativos precisam ter o TOTP confirmado, e
+|                    quem tem MFA ativo precisa informar o código a cada login.
 | - `mfa.recent`   : step-up — exige verificação recente (operações sensíveis).
 |
 | A ordem importa: `tenant` precisa vir DEPOIS de `auth:sanctum` (usa o
@@ -62,9 +63,11 @@ Route::middleware('web')->group(function () {
         Route::put('/me/password', [ProfileController::class, 'updatePassword'])
             ->name('api.me.password');
         Route::delete('/me/mfa', [ProfileController::class, 'destroyMfa'])
+            ->middleware('throttle:5,1')
             ->name('api.me.mfa.destroy');
 
-        Route::prefix('mfa')->group(function () {
+        // Limite de tentativas por usuário: impede força bruta do código TOTP.
+        Route::prefix('mfa')->middleware('throttle:5,1')->group(function () {
             Route::post('/setup', [MfaController::class, 'setup'])->name('api.mfa.setup');
             Route::post('/confirm', [MfaController::class, 'confirm'])->name('api.mfa.confirm');
             Route::post('/verify', [MfaController::class, 'verify'])->name('api.mfa.verify');

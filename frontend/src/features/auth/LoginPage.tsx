@@ -23,7 +23,7 @@ export function LoginPage() {
     onSuccess: async ({ user }) => {
       // Semeia a sessão e decide o destino.
       queryClient.setQueryData(['sessao'], { user })
-      navigate(user.mfa_pendente ? '/mfa' : '/')
+      navigate(user.mfa_pendente || user.mfa_verificacao_pendente ? '/mfa' : '/')
     },
     onError: (e) => setErro(mensagemDeErro(e)),
   })
