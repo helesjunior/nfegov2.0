@@ -227,4 +227,81 @@ XML;
         $this->assertNotNull(Nfe::withoutGlobalScopes()->where('chave', $chave)->first());
         $this->assertSame(200, Nsu::withoutGlobalScopes()->where('unidade_id', $unidade->id)->value('ultimo_nsu'));
     }
+
+    /**
+     * Regressão: o teto de documentos por execução cortava o lote no meio e o
+     * cursor já tinha saltado para o ultNSU do lote — as notas restantes nunca
+     * mais eram baixadas. O cursor deve parar no último documento processado.
+     */
+    public function test_teto_de_documentos_nao_pula_o_resto_do_lote(): void
+    {
+        Storage::fake('local');
+        config(['nfegov.sefaz.max_docs' => 2]);
+
+        $unidade = $this->unidade();
+        $chaves = [str_repeat('5', 44), str_repeat('6', 44), str_repeat('7', 44)];
+
+        $lote = [];
+        foreach ($chaves as $i => $chave) {
+            $lote[] = ['nsu' => $i + 1, 'schema' => 'procNFe', 'conteudo' => $this->docZip($this->xmlNfeProc($chave))];
+        }
+
+        $client = \Mockery::mock(SefazClient::class);
+        $client->shouldReceive('distDFe')
+            ->withArgs(fn ($u, $ultNsu) => $ultNsu === 0)
+            ->once()
+            ->andReturn($this->envelope($lote, 3, 3));
+
+        // A execução seguinte retoma DEPOIS do NSU 2 e recebe a 3ª nota.
+        $client->shouldReceive('distDFe')
+            ->withArgs(fn ($u, $ultNsu) => $ultNsu === 2)
+            ->once()
+            ->andReturn($this->envelope([$lote[2]], 3, 3));
+
+        app()->instance(SefazClient::class, $client);
+
+        $run = SyncRun::factory()->create(['tenant_id' => $unidade->tenant_id, 'unidade_id' => $unidade->id]);
+        app(DistDfeService::class)->sync($unidade, $run);
+
+        $this->assertSame(2, Nsu::withoutGlobalScopes()->where('unidade_id', $unidade->id)->value('ultimo_nsu'));
+        $this->assertSame(2, Nfe::withoutGlobalScopes()->count());
+
+        $run2 = SyncRun::factory()->create(['tenant_id' => $unidade->tenant_id, 'unidade_id' => $unidade->id]);
+        app(DistDfeService::class)->sync($unidade, $run2);
+
+        $this->assertSame(3, Nfe::withoutGlobalScopes()->count());
+        $this->assertSame(3, Nsu::withoutGlobalScopes()->where('unidade_id', $unidade->id)->value('ultimo_nsu'));
+    }
+
+    /**
+     * Regressão: um documento com erro no meio do lote fazia o cursor gravar
+     * o ultNSU do lote, pulando o documento com erro e os seguintes.
+     */
+    public function test_documento_com_erro_mantem_cursor_antes_dele(): void
+    {
+        Storage::fake('local');
+
+        $unidade = $this->unidade();
+        $run = SyncRun::factory()->create(['tenant_id' => $unidade->tenant_id, 'unidade_id' => $unidade->id]);
+
+        $client = \Mockery::mock(SefazClient::class);
+        $client->shouldReceive('distDFe')->once()->andReturn($this->envelope([
+            ['nsu' => 1, 'schema' => 'procNFe', 'conteudo' => $this->docZip($this->xmlNfeProc(str_repeat('8', 44)))],
+            // XML sem chave de acesso: o importador lança exceção.
+            ['nsu' => 2, 'schema' => 'procNFe', 'conteudo' => $this->docZip('<nfeProc xmlns="http://www.portalfiscal.inf.br/nfe"/>')],
+            ['nsu' => 3, 'schema' => 'procNFe', 'conteudo' => $this->docZip($this->xmlNfeProc(str_repeat('9', 44)))],
+        ], 3, 3));
+
+        app()->instance(SefazClient::class, $client);
+
+        try {
+            app(DistDfeService::class)->sync($unidade, $run);
+            $this->fail('A falha do documento deveria ser propagada.');
+        } catch (\RuntimeException) {
+            // esperado
+        }
+
+        $this->assertSame(1, Nsu::withoutGlobalScopes()->where('unidade_id', $unidade->id)->value('ultimo_nsu'));
+        $this->assertSame(SyncRun::STATUS_ERRO, $run->fresh()->status);
+    }
 }
