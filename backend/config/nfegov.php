@@ -103,6 +103,26 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Recuperação manual de NF-e — retentativa automática
+    |--------------------------------------------------------------------------
+    |
+    | Quando uma busca manual (chave/NSU) falha por motivo retentável
+    | (`nao_encontrado` ou `erro`), o job reagenda sozinho respeitando estes
+    | intervalos (minutos), um por tentativa automática, nesta ordem. Para
+    | `bloqueado`, o delay é o maior entre o intervalo e o tempo restante do
+    | freio (circuit breaker) — a tentativa não é consumida nesse caso.
+    |
+    */
+
+    'recuperacao' => [
+        'backoff_minutes' => array_map(
+            'intval',
+            explode(',', (string) env('NFEGOV_RECUPERACAO_BACKOFF_MINUTES', '30,120,360')),
+        ),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Certificado digital e-CNPJ
     |--------------------------------------------------------------------------
     */
