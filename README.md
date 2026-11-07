@@ -394,7 +394,7 @@ same-origin) e escopo de tenant por usuário autenticado.
 | `GET` · `POST` | `/api/usuarios` | Usuários (listar/criar — papel global + vínculos N:N) |
 | `PUT` | `/api/usuarios/{id}` | Edita usuário (papel e vínculos; não altera a própria conta) |
 | `PUT` | `/api/usuarios/{id}/ativo` | Ativa/desativa usuário |
-| `GET` | `/api/sync-runs` · `/api/dashboard` | Histórico de sync e painel |
+| `GET` | `/api/sync-runs` · `/api/dashboard` | Histórico de sync e painel (indicadores + gráficos: NF-e por dia e maiores fornecedores, 30 dias) |
 | `GET` | `/horizon` | Painel do Horizon (restrito) |
 
 ## Documentação
