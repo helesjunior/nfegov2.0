@@ -120,6 +120,27 @@ A tela inicial mostra a visão geral da entidade ativa, em dois blocos:
 Tudo respeita a entidade ativa e a permissão `nfe.view`. Com `NFEGOV_ADN_HABILITADO=false` o
 bloco de NFS-e some.
 
+### Capturas de tela
+
+Os dados das capturas são **fictícios**: nomes de empresas, CNPJs, e-mail e nome do usuário
+foram trocados por valores genéricos antes de cada print; valores, datas, números de nota e
+municípios são os do ambiente em que a captura foi feita.
+
+| Tela | Captura |
+|---|---|
+| Login | [`docs/capturas/login.png`](docs/capturas/login.png) |
+| Painel (NF-e e NFS-e), tema claro e escuro | [`painel.png`](docs/capturas/painel.png) · [`painel-escuro.png`](docs/capturas/painel-escuro.png) |
+| Lista de NF-e | [`docs/capturas/nfes.png`](docs/capturas/nfes.png) |
+| Lista de NFS-e (recebidas, filtros, exportações) | [`docs/capturas/nfses.png`](docs/capturas/nfses.png) |
+| Detalhe da NFS-e (partes, manifestação pendente, eventos) | [`docs/capturas/nfse-detalhe.png`](docs/capturas/nfse-detalhe.png) |
+| Diálogo de manifestação do tomador (rejeição) | [`docs/capturas/nfse-manifestacao.png`](docs/capturas/nfse-manifestacao.png) |
+| Sincronizações (NF-e e NFS-e) | [`docs/capturas/sincronizacoes.png`](docs/capturas/sincronizacoes.png) |
+| Unidades | [`docs/capturas/unidades.png`](docs/capturas/unidades.png) |
+
+![Painel com NF-e e NFS-e](docs/capturas/painel.png)
+
+![Lista de NFS-e](docs/capturas/nfses.png)
+
 ## Operação
 
 ### Sincronização com a SEFAZ (NF-e)

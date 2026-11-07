@@ -31,8 +31,14 @@ no [`README.md`](../README.md) da raiz.
 
 ## Capturas de tela
 
-A pasta [`capturas/`](capturas/) guarda imagens da interface (login, lista de NF-e e painel
-claro/escuro). Foram tiradas antes do painel de NFS-e (2.6.0) e do menu **NFS-e**.
+A pasta [`capturas/`](capturas/) guarda imagens da interface: login, painel (claro e escuro),
+lista de NF-e, lista e detalhe de NFS-e, diálogo de manifestação, sincronizações e unidades.
+Os dados são **fictícios** (nomes de empresas, CNPJs, e-mail e nome do usuário trocados por
+genéricos antes de cada print). A captura da lista de NF-e (`nfes.png`) é da 2.1.0, com dados de
+demonstração, e ainda não mostra o menu **NFS-e**; as demais são da 2.6.0.
+
+Para tirar capturas novas sem expor dados reais, troque nomes e documentos no navegador **antes**
+do print e confira a imagem depois; nunca publique captura de ambiente com dados reais.
 
 ## Como manter
 
