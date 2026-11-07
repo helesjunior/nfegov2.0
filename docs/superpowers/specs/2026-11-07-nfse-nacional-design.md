@@ -1,8 +1,9 @@
 # Design — Recepção de NFS-e pelo Ambiente de Dados Nacional (ADN)
 
 Data: 2026-11-07
-Status: **proposta** (fase de pesquisa e plano; nada implementado). Decisões em
-aberto no fim do documento.
+Status: **fases 1 e 2 implementadas na 2.4.0** (recepção + telas). Decisões no
+fim do documento; o que mudou em relação a esta proposta está em
+"Implementação (2.4.0)".
 
 ## Contexto e motivação
 
@@ -286,12 +287,12 @@ Espelho das rotas de NF-e, com as mesmas políticas e o `?unidade_id=`:
 - `POST /api/nfses/export` e `/export-xml` — reaproveitando `ExportNfeJob`/`ExportXmlJob`
 - `POST /api/nfses/recuperar` — busca pontual por chave (`/NFSe/{chave}/Eventos`)
 - `GET /api/nfses/{chave}/danfse` — **fase 3** (ver decisões)
-- Permissão nova `nfse.view` (seeder do spatie), concedida aos mesmos papéis de `nfe.view`.
+- Permissões: as mesmas da NF-e (`nfe.view` e `nfe.export`).
 - Auditoria (`AuditLogger`) em download de XML/PDF, como na NF-e.
 
 ### 7. Telas (frontend)
 
-- Menu lateral: item **NFS-e** logo abaixo de NF-e (`/nfses`, permissão `nfse.view`).
+- Menu lateral: item **NFS-e** logo abaixo de NF-e (`/nfses`, permissão `nfe.view`).
 - `features/nfses/NfseListPage`: mesmo layout da lista de NF-e; colunas número,
   prestador, município, emissão, competência, valor, ISS retido, situação;
   filtros por unidade, período, papel (Recebidas / Emitidas / Intermediadas),
@@ -316,7 +317,7 @@ Backend (PHPUnit, Postgres no Docker):
 - Eventos: cancelamento antes e depois da nota.
 - `XmlStore`: caminho `nfses/`, imutabilidade.
 - `HttpAdnClient` com `Http::fake()`: URL, query, `Accept`, escolha do ambiente.
-- Controllers: escopo de tenant, `?unidade_id=`, permissão `nfse.view`.
+- Controllers: escopo de tenant, `?unidade_id=`, permissões `nfe.view`/`nfe.export`.
 
 Frontend (Vitest): lista, filtros, detalhe, item do menu condicionado à permissão.
 
@@ -354,17 +355,42 @@ Fases sugeridas (cada uma um PR):
 - Se a consulta com `cnpjConsulta` de outra raiz funciona com procuração eletrônica.
 - Se há retenção máxima do histórico no ADN.
 
-## Decisões em aberto (para o usuário)
+## Decisões (usuário, 2026-11-07)
 
-1. **Quais notas guardar?** A fila traz recebidas, emitidas e intermediadas.
-   Recomendação: guardar todas com `papel` e mostrar "Recebidas" por padrão.
-2. **Carga histórica**: o ADN entrega tudo desde o primeiro documento (pode ser
-   2023). Recomendação: baixar o histórico inteiro, em várias execuções
-   (`max_docs`). Alternativa: ignorar notas emitidas antes de uma data de corte.
-3. **DANFSe**: gerar PDF local já na 2.4.0 ou só na fase 3? Recomendação: fase 3
-   (exige leiaute novo e provavelmente uma lib de PDF/HTML).
-4. **Manifestação do tomador** (confirmar/rejeitar NFS-e): entra no escopo?
-   Recomendação: fora por enquanto; só receber e mostrar os eventos.
-5. **Agenda**: mesma da NF-e (a cada 3 h, dias úteis)? Recomendação: sim.
-6. **Teste em produção restrita**: qual unidade/certificado usar para a primeira
-   chamada real?
+1. **Guardar todas as notas** (recebidas, emitidas e intermediadas) com `papel`;
+   a tela abre em "Recebidas".
+2. **Histórico completo**, dividido em várias execuções (`max_docs`).
+3. **DANFSe** fica para uma fase seguinte.
+4. **Manifestação do tomador** fica de fora por enquanto.
+5. **Agenda** igual à da NF-e (a cada 3 h, dias úteis).
+6. **Teste real** com a unidade Congregação Cristã no Brasil - Brasília e o
+   certificado dela.
+
+## Implementação (2.4.0)
+
+Chamadas reais com o certificado da unidade de Brasília (só leitura):
+
+- Produção restrita: `GET /DFe/0` → HTTP 404, `E2220`, `TipoConsulta: CnpjBase`.
+  O mTLS com o certificado em blob PEM funciona.
+- Produção: `GET /DFe/0` → HTTP 200, 50 itens (46 NFS-e e 4 cancelamentos,
+  desde abril/2023), XML em GZip + Base64, leiaute 1.00. O Swagger
+  (`/contribuintes/swagger/v1/swagger.json`, "API NFS-e - ADN Contribuinte v1")
+  lista só `GET /DFe/{NSU}` (`cnpjConsulta`, `cpfConsulta`, `lote`) e
+  `GET /NFSe/{ChaveAcesso}/Eventos`.
+- A chave de 50 dígitos é município (7) + ambiente gerador (1) + tipo de
+  inscrição (1) + inscrição (14) + número (13) + AAMM (4) + código (9) + DV (1).
+  O XML vai para a pasta do AAMM da chave.
+- O sync real da unidade importou 56 NFS-e e 4 cancelamentos, com papel
+  `tomador` e situação `cancelada` aplicada pelos eventos.
+
+Diferenças em relação à proposta:
+
+- **Permissões**: em vez de criar `nfse.view`, a NFS-e usa `nfe.view` (consultar)
+  e `nfe.export` (XML e exportação). Quem opera NF-e opera NFS-e, sem precisar
+  rodar o seeder de papéis em produção.
+- **Cliente HTTP**: cURL direto, porque o Guzzle não aceita
+  `CURLOPT_SSLCERT_BLOB`. O certificado continua só em memória.
+- **Fora desta versão**: exportação ZIP dos XMLs, recuperação manual por chave
+  (`/NFSe/{chave}/Eventos` já está no cliente) e card no painel.
+- Configuração em `nfegov.adn.*` (`NFEGOV_ADN_HABILITADO` liga/desliga; fila
+  Horizon `adn` com `NFEGOV_ADN_WORKERS` processos).
