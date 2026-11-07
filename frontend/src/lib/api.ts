@@ -419,22 +419,39 @@ export interface DashboardResumo {
     valor_ultimos_30_dias: number
     resumos: number
   }
+  /** NFS-e recebidas (a unidade é a tomadora). `null` com a recepção desligada. */
+  nfses: {
+    total: number
+    ultimos_30_dias: number
+    valor_ultimos_30_dias: number
+    canceladas_30_dias: number
+    sem_manifestacao: number
+  } | null
   unidades: { total: number; ativas: number }
   certificados: { vencendo_30_dias: number; vencidos: number; expirados: number }
   sync: {
     ultimas: Array<{
       id: number
       unidade_id: number
+      tipo?: 'nfe' | 'nfse'
       status: string
       docs_count: number
       iniciado_em: string | null
     }>
     com_erro_24h: number
     circuito_aberto: boolean
+    circuito_adn_aberto?: boolean
   }
   graficos: {
     por_dia: Array<{ data: string; quantidade: number; valor: number }>
     fornecedores: Array<{ cnpj: string | null; nome: string; quantidade: number; valor: number }>
+    nfse_por_dia?: Array<{ data: string; quantidade: number; valor: number }> | null
+    nfse_prestadores?: Array<{
+      documento: string | null
+      nome: string
+      quantidade: number
+      valor: number
+    }> | null
   }
 }
 

@@ -1,7 +1,7 @@
 # Design — Recepção de NFS-e pelo Ambiente de Dados Nacional (ADN)
 
 Data: 2026-11-07
-Status: **fases 1 e 2 implementadas na 2.4.0** (recepção + telas). Decisões no
+Status: **implementado até a 2.6.0** (recepção, telas, DANFSe, manifestação, ZIP, busca por chave e painel). Decisões no
 fim do documento; o que mudou em relação a esta proposta está em
 "Implementação (2.4.0)".
 
@@ -493,3 +493,39 @@ desenvolvimento: o primeiro uso real fica por conta do usuário, e a Rejeição
 
 Canhoto do DANFSe, card de NFS-e no painel e a manifestação de intermediário e
 prestador.
+
+## Painel (2.6.0): indicadores e gráficos de NFS-e
+
+`GET /api/dashboard` ganhou o bloco `nfses` e dois gráficos, no mesmo desenho dos de NF-e,
+escopados à entidade ativa e à permissão `nfe.view`:
+
+- `nfses`: `total` (recebidas), `ultimos_30_dias`, `valor_ultimos_30_dias`,
+  `canceladas_30_dias` e `sem_manifestacao`;
+- `graficos.nfse_por_dia`: 30 dias, com zero nos dias sem nota;
+- `graficos.nfse_prestadores`: os 5 prestadores de maior valor nos últimos 30 dias;
+- `sync.circuito_adn_aberto` (freio do ADN, separado do da SEFAZ) e o `tipo` (`nfe` ou
+  `nfse`) em cada execução de `sync.ultimas`.
+
+Regras dos números:
+
+- contam só as notas **recebidas** (a unidade é a tomadora); as emitidas e as intermediadas
+  ficam na lista, não no painel;
+- "últimos 30 dias" e o valor deixam de fora as canceladas e as substituídas (não são mais
+  serviço a pagar); elas viram o número `canceladas_30_dias`;
+- "sem manifestação" são as recebidas **normais** em que o tomador ainda não confirmou nem
+  rejeitou, de todo o histórico (leva à lista de NFS-e);
+- o valor é o `valor_servico` da nota, não o líquido.
+
+Com `NFEGOV_ADN_HABILITADO=false` o backend devolve `nfses`, `nfse_por_dia` e
+`nfse_prestadores` como `null` e a SPA esconde o bloco de NFS-e; a NF-e não muda.
+
+Na SPA, `GraficoPorDia` e `GraficoFornecedores` ganharam o parâmetro `documento`
+(`NF-e` ou `NFS-e`), que só troca os textos ("Maiores prestadores" no lugar de "Maiores
+fornecedores"). A tela de login, o título da página e o subtítulo do menu passaram a citar a
+NFS-e.
+
+### Não coberto
+
+O painel não filtra por unidade (como o de NF-e, é por entidade); a unidade aparece como
+filtro na lista de NFS-e. Os números "do mês" e por competência ficam para quem precisar:
+o painel usa janelas de 30 dias, como o da NF-e.

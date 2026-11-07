@@ -3,8 +3,8 @@ import { Icone, type NomeIcone } from '../ui/Icone'
 import { Logo } from '../ui/Logo'
 
 const DESTAQUES: { icone: NomeIcone; texto: string }[] = [
-  { icone: 'sincronizar', texto: 'Recepção automática das NF-e direto da SEFAZ' },
-  { icone: 'documento', texto: 'Consulta, DANFE e XML em um só lugar' },
+  { icone: 'sincronizar', texto: 'Recepção automática de NF-e (SEFAZ) e NFS-e (ambiente nacional)' },
+  { icone: 'documento', texto: 'Consulta, DANFE, DANFSe e XML em um só lugar' },
   { icone: 'cadeado', texto: 'Acesso seguro com verificação em duas etapas' },
 ]
 
@@ -34,7 +34,7 @@ export function AuthLayout({ children }: { children: ReactNode }) {
             ))}
           </ul>
         </div>
-        <div className="auth-marca__rodape">NFeGov 2.0 · Recepção e consulta de NF-e</div>
+        <div className="auth-marca__rodape">NFeGov 2.0 · Recepção e consulta de NF-e e NFS-e</div>
       </section>
 
       <main className="auth-formulario">
