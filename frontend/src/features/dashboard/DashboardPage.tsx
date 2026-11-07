@@ -4,6 +4,7 @@ import { dashboardApi } from '../../lib/api'
 import { formatarDataHora, formatarMoeda } from '../../lib/format'
 import { Icone, type NomeIcone } from '../../components/ui/Icone'
 import { StatusSelo } from '../sync/SyncPage'
+import { GraficoFornecedores, GraficoPorDia } from './Graficos'
 
 /**
  * Painel inicial: visão geral da recepção de NF-e.
@@ -74,6 +75,13 @@ export function DashboardPage() {
           </div>
         ))}
       </div>
+
+      {data.graficos && (
+        <div className="graficos">
+          <GraficoPorDia dias={data.graficos.por_dia} />
+          <GraficoFornecedores fornecedores={data.graficos.fornecedores} />
+        </div>
+      )}
 
       <h2 className="secao-titulo">Últimas sincronizações</h2>
       <div className="card" style={{ padding: 0 }}>

@@ -425,6 +425,10 @@ export interface DashboardResumo {
     com_erro_24h: number
     circuito_aberto: boolean
   }
+  graficos: {
+    por_dia: Array<{ data: string; quantidade: number; valor: number }>
+    fornecedores: Array<{ cnpj: string | null; nome: string; quantidade: number; valor: number }>
+  }
 }
 
 export const dashboardApi = {
