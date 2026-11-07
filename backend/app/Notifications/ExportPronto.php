@@ -20,6 +20,7 @@ class ExportPronto extends Notification
         public readonly string $caminho,
         public readonly string $formato,
         public readonly int $total,
+        public readonly string $documento = 'NF-e',
     ) {
     }
 
@@ -34,7 +35,7 @@ class ExportPronto extends Notification
     public function toMail(object $notifiable): MailMessage
     {
         return (new MailMessage)
-            ->subject('Sua exportação de NF-e está pronta')
+            ->subject("Sua exportação de {$this->documento} está pronta")
             ->line("A exportação em {$this->formato} foi concluída com {$this->total} registro(s).")
             ->line('Acesse o sistema para baixar o arquivo.');
     }
@@ -45,6 +46,7 @@ class ExportPronto extends Notification
             'caminho' => $this->caminho,
             'formato' => $this->formato,
             'total' => $this->total,
+            'documento' => $this->documento,
         ];
     }
 }

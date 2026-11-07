@@ -17,6 +17,7 @@ class SyncRunResource extends JsonResource
         return [
             'id' => $this->id,
             'unidade_id' => $this->unidade_id,
+            'tipo' => $this->tipo ?? 'nfe',
             'iniciado_em' => $this->iniciado_em?->toIso8601String(),
             'finalizado_em' => $this->finalizado_em?->toIso8601String(),
             'nsu_inicial' => $this->nsu_inicial,

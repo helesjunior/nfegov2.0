@@ -23,9 +23,32 @@ use RuntimeException;
  */
 class SefazGuard
 {
-    private const CHAVE_CIRCUITO = 'sefaz:circuito:aberto';
+    /**
+     * Prefixo das chaves de cache. Cada serviço externo tem o seu freio
+     * (o `AdnGuard` da NFS-e usa outro), para um não parar o outro.
+     */
+    protected function prefixoCache(): string
+    {
+        return 'sefaz:';
+    }
 
-    private const CHAVE_RATE = 'sefaz:rate:';
+    /**
+     * Lê a configuração do freio deste serviço (`nfegov.sefaz.*`).
+     */
+    protected function config(string $chave, int $padrao): int
+    {
+        return (int) config('nfegov.sefaz.'.$chave, $padrao);
+    }
+
+    protected function nomeServico(): string
+    {
+        return 'à SEFAZ';
+    }
+
+    protected function mensagemCircuitoAberto(): string
+    {
+        return 'Circuito da SEFAZ aberto (consumo indevido). Novas chamadas suspensas temporariamente.';
+    }
 
     /**
      * Antes de qualquer chamada: respeita o circuit breaker e o rate limiter.
@@ -36,13 +59,13 @@ class SefazGuard
     {
         if ($this->isOpen()) {
             throw new RuntimeException(
-                'Circuito da SEFAZ aberto (consumo indevido). Novas chamadas suspensas temporariamente.'
+                $this->mensagemCircuitoAberto()
             );
         }
 
         if (! $this->permitirChamada()) {
             throw new RuntimeException(
-                'Limite global de consultas à SEFAZ por minuto atingido. Aguarde.'
+                'Limite global de consultas '.$this->nomeServico().' por minuto atingido. Aguarde.'
             );
         }
     }
@@ -52,9 +75,9 @@ class SefazGuard
      */
     public function permitirChamada(): bool
     {
-        $teto = (int) config('nfegov.sefaz.rate_per_minute', 30);
+        $teto = (int) $this->config('rate_per_minute', 30);
 
-        $chave = self::CHAVE_RATE.now()->format('YmdHi');
+        $chave = $this->prefixoCache().'rate:'.now()->format('YmdHi');
 
         // Incrementa e expira em ~2 minutos (limpa janelas antigas).
         $atual = Cache::increment($chave);
@@ -71,9 +94,9 @@ class SefazGuard
      */
     public function tripCircuitBreaker(Unidade $unidade): void
     {
-        $minutos = (int) config('nfegov.sefaz.circuit_breaker_minutes', 60);
+        $minutos = (int) $this->config('circuit_breaker_minutes', 60);
 
-        Cache::put(self::CHAVE_CIRCUITO, [
+        Cache::put($this->prefixoCache().'circuito:aberto', [
             'aberto_em' => now()->toIso8601String(),
             'unidade_id' => $unidade->id,
         ], now()->addMinutes($minutos));
@@ -81,7 +104,7 @@ class SefazGuard
 
     public function isOpen(): bool
     {
-        return Cache::has(self::CHAVE_CIRCUITO);
+        return Cache::has($this->prefixoCache().'circuito:aberto');
     }
 
     /**
@@ -92,13 +115,13 @@ class SefazGuard
      */
     public function minutosRestantesDoFreio(): int
     {
-        $dados = Cache::get(self::CHAVE_CIRCUITO);
+        $dados = Cache::get($this->prefixoCache().'circuito:aberto');
 
         if (! is_array($dados) || ! isset($dados['aberto_em'])) {
             return 0;
         }
 
-        $minutos = (int) config('nfegov.sefaz.circuit_breaker_minutes', 60);
+        $minutos = (int) $this->config('circuit_breaker_minutes', 60);
         $fechaEm = Carbon::parse($dados['aberto_em'])->addMinutes($minutos);
 
         return max(0, (int) ceil(now()->diffInSeconds($fechaEm, false) / 60));
@@ -109,7 +132,7 @@ class SefazGuard
      */
     public function reset(): void
     {
-        Cache::forget(self::CHAVE_CIRCUITO);
+        Cache::forget($this->prefixoCache().'circuito:aberto');
     }
 
     /**
@@ -121,7 +144,7 @@ class SefazGuard
      */
     public function slotPara(Unidade $unidade): int
     {
-        $janelaSegundos = ((int) config('nfegov.sefaz.slot_window_minutes', 180)) * 60;
+        $janelaSegundos = ((int) $this->config('slot_window_minutes', 180)) * 60;
 
         // Distribuição estável por unidade: hash do id define a posição
         // relativa [0,1). Determinístico (mesmo atraso a cada execução) e

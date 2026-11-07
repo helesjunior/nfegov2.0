@@ -103,6 +103,42 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | NFS-e — Ambiente de Dados Nacional (ADN)
+    |--------------------------------------------------------------------------
+    |
+    | Recepção das NFS-e pela API de distribuição de contribuintes do ADN
+    | (`GET /DFe/{NSU}`), com mTLS e o mesmo certificado e-CNPJ da unidade.
+    | Lotes de até 50 documentos; fila vazia volta como HTTP 404. O ADN não tem
+    | cStat 656, mas o freio continua: teto por minuto e circuit breaker
+    | próprios, que abrem em HTTP 429/503 ou falha de conexão.
+    |
+    */
+
+    'adn' => [
+        // Liga/desliga a recepção de NFS-e na instalação (não afeta a NF-e).
+        'habilitado' => (bool) env('NFEGOV_ADN_HABILITADO', true),
+
+        // URL base por ambiente da unidade (`tp_amb`: 1 produção, 2 produção restrita).
+        'base_url' => [
+            1 => env('NFEGOV_ADN_URL_PRODUCAO', 'https://adn.nfse.gov.br/contribuintes'),
+            2 => env('NFEGOV_ADN_URL_HOMOLOGACAO', 'https://adn.producaorestrita.nfse.gov.br/contribuintes'),
+        ],
+
+        'queue' => env('NFEGOV_ADN_QUEUE', 'adn'),
+        'timeout' => (int) env('NFEGOV_ADN_TIMEOUT', 30),
+        'rate_per_minute' => (int) env('NFEGOV_ADN_RATE_PER_MINUTE', 30),
+        'circuit_breaker_minutes' => (int) env('NFEGOV_ADN_CIRCUIT_BREAKER_MINUTES', 30),
+        'slot_window_minutes' => (int) env('NFEGOV_ADN_SLOT_WINDOW_MINUTES', 180),
+
+        // Por execução de uma unidade. A carga do histórico (que o ADN entrega
+        // desde o primeiro documento do CNPJ) se divide em várias execuções.
+        'max_iteracoes' => (int) env('NFEGOV_ADN_MAX_ITERACOES', 20),
+        'max_docs' => (int) env('NFEGOV_ADN_MAX_DOCS', 1000),
+        'sleep_segundos' => (int) env('NFEGOV_ADN_SLEEP', 1),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Recuperação manual de NF-e — retentativa automática
     |--------------------------------------------------------------------------
     |

@@ -27,6 +27,9 @@ class SyncRun extends Model
     public const STATUS_ERRO = 'erro';
     public const STATUS_BLOQUEADO = 'bloqueado';
 
+    public const TIPO_NFE = 'nfe';
+    public const TIPO_NFSE = 'nfse';
+
     public function unidade()
     {
         return $this->belongsTo(Unidade::class);

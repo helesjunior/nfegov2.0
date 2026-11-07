@@ -8,6 +8,7 @@ use App\Http\Controllers\Api\ExportDownloadController;
 use App\Http\Controllers\Api\MfaController;
 use App\Http\Controllers\Api\NfeController;
 use App\Http\Controllers\Api\NfeRecuperacaoController;
+use App\Http\Controllers\Api\NfseController;
 use App\Http\Controllers\Api\NotificationController;
 use App\Http\Controllers\Api\ProfileController;
 use App\Http\Controllers\Api\SessaoTenantController;
@@ -94,6 +95,14 @@ Route::middleware('web')->group(function () {
         // Recuperação manual de NF-e (por chave ou NSU). Exige `sync.executar`.
         Route::post('/nfes/recuperar', [NfeRecuperacaoController::class, 'store'])
             ->name('api.nfes.recuperar');
+
+        // NFS-e (ADN): listagem, exportação, detalhe e XML (assinado).
+        Route::get('/nfses', [NfseController::class, 'index'])->name('api.nfses.index');
+        Route::post('/nfses/export', [NfseController::class, 'export'])->name('api.nfses.export');
+        Route::get('/nfses/{chave}', [NfseController::class, 'show'])->name('api.nfses.show');
+        Route::get('/nfses/{chave}/xml', [NfseController::class, 'xml'])
+            ->middleware('signed')
+            ->name('api.nfses.xml');
 
         // Unidades gestoras.
         Route::get('/unidades', [UnidadeController::class, 'index'])->name('api.unidades.index');

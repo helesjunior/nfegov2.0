@@ -24,6 +24,10 @@ class SyncRunController extends Controller
             ->with('unidade')
             ->when($request->integer('unidade_id'), fn ($q, $u) => $q->where('unidade_id', $u))
             ->when($request->input('status'), fn ($q, $s) => $q->where('status', $s))
+            ->when(
+                in_array($request->input('tipo'), [SyncRun::TIPO_NFE, SyncRun::TIPO_NFSE], true),
+                fn ($q) => $q->where('tipo', $request->input('tipo')),
+            )
             ->latest('iniciado_em');
 
         return SyncRunResource::collection($query->paginate($perPage));
