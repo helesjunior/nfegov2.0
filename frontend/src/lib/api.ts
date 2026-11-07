@@ -440,6 +440,14 @@ export const dashboardApi = {
 
 // ---- NF-e -------------------------------------------------------------------
 
+/** Unidade (CNPJ) que recebeu a nota: cada unidade guarda a sua cópia. */
+export interface NfeUnidade {
+  id: number
+  nome: string
+  nome_resumido: string | null
+  cnpj: string
+}
+
 export interface Nfe {
   id: number
   chave: string
@@ -447,6 +455,7 @@ export interface Nfe {
   serie: string | null
   modelo: string
   unidade_id: number
+  unidade?: NfeUnidade | null
   emitente_cnpj: string | null
   emitente_nome: string | null
   dest_cnpj: string | null
@@ -492,8 +501,11 @@ export const nfeApi = {
     return data
   },
 
-  async obter(chave: string): Promise<Nfe> {
-    const { data } = await http.get<{ data: Nfe }>(`/nfes/${chave}`)
+  /** `unidadeId` escolhe a cópia da unidade quando a mesma chave existe em mais de uma. */
+  async obter(chave: string, unidadeId?: number): Promise<Nfe> {
+    const { data } = await http.get<{ data: Nfe }>(`/nfes/${chave}`, {
+      params: unidadeId ? { unidade_id: unidadeId } : undefined,
+    })
     return data.data
   },
 

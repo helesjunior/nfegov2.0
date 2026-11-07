@@ -12,9 +12,11 @@ use Illuminate\Support\Facades\DB;
 /**
  * Importa XMLs de NF-e (completos ou resumos) para o banco.
  *
- * A chave de acesso é a identidade da nota: `updateOrCreate` por `chave`
- * garante que a mesma nota nunca duplique (mesmo chegando em resumo e depois
- * completa). Itens são sincronizados para não duplicarem em reprocessamentos.
+ * A identidade da nota é (unidade, chave): a NF-e pertence à UNIDADE que a
+ * recebeu, não à entidade. Se a mesma nota chega para duas unidades da mesma
+ * entidade (ex.: transferência entre filiais), cada uma tem o seu registro e o
+ * seu XML, na sua própria pasta. Dentro da unidade, `updateOrCreate` garante
+ * que a nota nunca duplique (mesmo chegando em resumo e depois completa). Itens são sincronizados para não duplicarem em reprocessamentos.
  */
 class NfeImporter
 {
@@ -47,7 +49,7 @@ class NfeImporter
             $emitCnpj = $this->txt($xp, '//nfe:emit/nfe:CNPJ');
 
             $nfe = Nfe::updateOrCreate(
-                ['chave' => $chave],
+                ['unidade_id' => $unidade->id, 'chave' => $chave],
                 [
                     'tenant_id' => $unidade->tenant_id,
                     'unidade_id' => $unidade->id,
@@ -95,8 +97,15 @@ class NfeImporter
         $emitCnpj = $this->txt($xp, '//nfe:resNFe/nfe:CNPJ');
 
         // Resumo NÃO grava XML no disco (não é documento de guarda completa).
+        // Se a unidade já tem a nota completa, um resumo tardio (reentrega ou
+        // recuperação) não pode rebaixá-la para "resumo".
+        $existente = Nfe::where('unidade_id', $unidade->id)->where('chave', $chave)->first();
+        if ($existente?->completo()) {
+            return $existente;
+        }
+
         return Nfe::updateOrCreate(
-            ['chave' => $chave],
+            ['unidade_id' => $unidade->id, 'chave' => $chave],
             [
                 'tenant_id' => $unidade->tenant_id,
                 'unidade_id' => $unidade->id,

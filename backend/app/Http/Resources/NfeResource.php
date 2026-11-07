@@ -29,6 +29,12 @@ class NfeResource extends JsonResource
             'serie' => $this->serie,
             'modelo' => $this->modelo,
             'unidade_id' => $this->unidade_id,
+            'unidade' => $this->whenLoaded('unidade', fn () => $this->unidade ? [
+                'id' => $this->unidade->id,
+                'nome' => $this->unidade->nome,
+                'nome_resumido' => $this->unidade->nome_resumido,
+                'cnpj' => $this->unidade->cnpj,
+            ] : null),
             'emitente_cnpj' => $this->emitente_cnpj,
             'emitente_nome' => $this->emitente_nome,
             'dest_cnpj' => $this->dest_cnpj,

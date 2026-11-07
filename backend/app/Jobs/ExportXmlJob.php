@@ -51,6 +51,7 @@ class ExportXmlJob implements ShouldQueue
             $total = 0;
 
             $query->build($this->filtros)
+                ->with(NfeQuery::comUnidade())
                 ->whereNotNull('xml_path')
                 ->orderBy('id')
                 ->chunkById(200, function ($nfes) use ($zip, $disco, &$total) {
@@ -59,8 +60,10 @@ class ExportXmlJob implements ShouldQueue
                             continue;
                         }
 
-                        // Adiciona diretamente do caminho no disco (streaming).
-                        $zip->addFile($disco->path($nfe->xml_path), $nfe->chave.'.xml');
+                        // Adiciona diretamente do caminho no disco (streaming),
+                        // numa pasta por unidade: a mesma chave pode existir em
+                        // duas unidades e cada uma tem a sua cópia.
+                        $zip->addFile($disco->path($nfe->xml_path), $this->pasta($nfe).'/'.$nfe->chave.'.xml');
                         $total++;
                     }
                 });
@@ -70,6 +73,16 @@ class ExportXmlJob implements ShouldQueue
             $user = User::withoutGlobalScopes()->find($this->userId);
             $user?->notify(new ExportPronto($caminho, 'zip', $total));
         });
+    }
+
+    /**
+     * Pasta da unidade dentro do ZIP: o CNPJ (só dígitos), ou o id se faltar.
+     */
+    private function pasta($nfe): string
+    {
+        $cnpj = preg_replace('/\D/', '', (string) $nfe->unidade?->cnpj);
+
+        return $cnpj !== '' ? $cnpj : 'unidade-'.$nfe->unidade_id;
     }
 
     private function disco(): string

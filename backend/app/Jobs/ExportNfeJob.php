@@ -64,6 +64,7 @@ class ExportNfeJob implements ShouldQueue
         $total = 0;
 
         $query->build($this->filtros)
+            ->with(NfeQuery::comUnidade())
             ->orderBy('id')
             ->chunkById(500, function ($nfes) use ($handle, &$total) {
                 foreach ($nfes as $nfe) {
@@ -88,6 +89,7 @@ class ExportNfeJob implements ShouldQueue
         $total = 0;
 
         $query->build($this->filtros)
+            ->with(NfeQuery::comUnidade())
             ->orderBy('id')
             ->chunkById(500, function ($nfes) use ($writer, &$total) {
                 foreach ($nfes as $nfe) {
@@ -106,7 +108,7 @@ class ExportNfeJob implements ShouldQueue
      */
     private function cabecalho(): array
     {
-        return ['Chave', 'Numero', 'Serie', 'Modelo', 'Unidade', 'Emitente CNPJ', 'Emitente', 'Valor total', 'Data emissao', 'Estado'];
+        return ['Chave', 'Numero', 'Serie', 'Modelo', 'Unidade', 'Unidade CNPJ', 'Emitente CNPJ', 'Emitente', 'Valor total', 'Data emissao', 'Estado'];
     }
 
     /**
@@ -119,7 +121,8 @@ class ExportNfeJob implements ShouldQueue
             (string) $nfe->numero,
             (string) $nfe->serie,
             (string) $nfe->modelo,
-            (string) $nfe->unidade_id,
+            (string) ($nfe->unidade?->nome_resumido ?: $nfe->unidade?->nome ?: $nfe->unidade_id),
+            (string) $nfe->unidade?->cnpj,
             (string) $nfe->emitente_cnpj,
             (string) $nfe->emitente_nome,
             $nfe->valor_total !== null ? (float) $nfe->valor_total : null,
