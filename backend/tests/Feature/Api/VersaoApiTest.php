@@ -21,8 +21,9 @@ class VersaoApiTest extends TestCase
         $resp->assertOk();
         $resp->assertJsonStructure(['data' => ['versao', 'build_at', 'rotulo']]);
 
-        // A versão inicial do sistema é 2.0.0.
-        $this->assertSame('2.0.0', $resp->json('data.versao'));
+        // A versão exposta acompanha a fonte de verdade (`backend/VERSION`).
+        $versao = trim((string) file_get_contents(base_path('VERSION')));
+        $this->assertSame($versao, $resp->json('data.versao'));
     }
 
     public function test_rotulo_inclui_o_timestamp_da_build_quando_existe(): void

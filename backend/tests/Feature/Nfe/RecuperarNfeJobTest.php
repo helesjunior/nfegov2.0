@@ -12,6 +12,7 @@ use App\Models\Certificate;
 use App\Models\Tenant;
 use App\Models\Unidade;
 use App\Models\User;
+use Illuminate\Contracts\Queue\ShouldBeUniqueUntilProcessing;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Queue;
@@ -90,8 +91,8 @@ class RecuperarNfeJobTest extends TestCase
         $client->shouldReceive('distDFePorNsu')->once()->andReturn($this->envelope('137'));
         app()->instance(SefazClient::class, $client);
 
-        // Tentativa final (3): o desfecho é notificado, não reagendado.
-        (new RecuperarNfeJob($unidade->id, $user->id, null, 999, 3))->handle(
+        // Tentativa final (4): o desfecho é notificado, não reagendado.
+        (new RecuperarNfeJob($unidade->id, $user->id, null, 999, 4))->handle(
             app(RecuperacaoService::class),
             app(SefazGuard::class),
         );
@@ -112,7 +113,7 @@ class RecuperarNfeJobTest extends TestCase
         app()->instance(SefazClient::class, $client);
 
         // Sem tentativas restantes, o freio aberto notifica (não reagenda).
-        (new RecuperarNfeJob($unidade->id, $user->id, null, 150, 3))->handle(
+        (new RecuperarNfeJob($unidade->id, $user->id, null, 150, 4))->handle(
             app(RecuperacaoService::class),
             app(SefazGuard::class),
         );
@@ -135,7 +136,7 @@ class RecuperarNfeJobTest extends TestCase
         $client->shouldReceive('distDFePorNsu')->once()->andReturn($this->envelope('137'));
         app()->instance(SefazClient::class, $client);
 
-        (new RecuperarNfeJob($unidade->id, $superAdmin->id, null, 999, 3))->handle(
+        (new RecuperarNfeJob($unidade->id, $superAdmin->id, null, 999, 4))->handle(
             app(RecuperacaoService::class),
             app(SefazGuard::class),
         );
@@ -156,15 +157,36 @@ class RecuperarNfeJobTest extends TestCase
         $client->shouldReceive('distDFePorNsu')->once()->andReturn($this->envelope('137'));
         app()->instance(SefazClient::class, $client);
 
-        $job = new RecuperarNfeJob($unidade->id, $user->id, null, 999);
+        $job = new RecuperarNfeJob($unidade->id, $user->id, null, 999, 4);
 
         // Simula a API tendo reservado a chave.
         Cache::add($job->chaveIdempotencia(), true, 3600);
 
         $job->handle(app(RecuperacaoService::class), app(SefazGuard::class));
 
-        // Ao terminar, a chave some: o usuário pode tentar novamente.
+        // No desfecho final, a chave some: o usuário pode tentar novamente.
         $this->assertFalse(Cache::has($job->chaveIdempotencia()));
+    }
+
+    public function test_mantem_a_idempotencia_quando_reagenda(): void
+    {
+        Storage::fake('local');
+        $unidade = $this->unidadeComCertificado();
+        $user = User::factory()->comTenant($unidade->tenant_id)->create();
+
+        $service = \Mockery::mock(RecuperacaoService::class);
+        $service->shouldReceive('porNsu')
+            ->once()
+            ->andReturn(ResultadoRecuperacao::de(ResultadoRecuperacao::NAO_ENCONTRADO, 0, 'sem nota'));
+
+        $job = new RecuperarNfeJob($unidade->id, $user->id, null, 999, 1);
+        Cache::add($job->chaveIdempotencia(), true, 3600);
+
+        $job->handle($service, app(SefazGuard::class));
+
+        // Com retentativa agendada, a chave permanece presa — evita que o
+        // usuário dispare uma cadeia paralela durante a espera.
+        $this->assertTrue(Cache::has($job->chaveIdempotencia()));
     }
 
     public function test_nao_encontrado_reagenda_com_backoff(): void
@@ -214,7 +236,7 @@ class RecuperarNfeJobTest extends TestCase
         Queue::assertPushed(SyncNfeJob::class);
     }
 
-    public function test_terceira_tentativa_falha_nao_reagenda_e_notifica(): void
+    public function test_terceira_tentativa_reagenda_usando_o_intervalo_de_6h(): void
     {
         Storage::fake('local');
         $unidade = $this->unidadeComCertificado();
@@ -225,7 +247,36 @@ class RecuperarNfeJobTest extends TestCase
             ->once()
             ->andReturn(ResultadoRecuperacao::de(ResultadoRecuperacao::NAO_ENCONTRADO, 0, 'sem nota'));
 
-        (new RecuperarNfeJob($unidade->id, $user->id, null, 999, 3))->handle(
+        // A 3ª tentativa ainda reagenda (para a 4ª); o backoff[2] = 6h é usado.
+        $job = new RecuperarNfeJob($unidade->id, $user->id, null, 999, 3);
+        $job->handle($service, app(SefazGuard::class));
+
+        Queue::assertPushed(
+            RecuperarNfeJob::class,
+            fn ($j) => $j->tentativa === 4 && $j->delay instanceof \DateTimeInterface,
+        );
+        Queue::assertNotPushed(SyncNfeJob::class);
+
+        // O delay da 3ª tentativa é o terceiro intervalo (6h = 21600s).
+        $delay = $job->delayDoReagendamento(
+            ResultadoRecuperacao::de(ResultadoRecuperacao::NAO_ENCONTRADO, 0, 'x'),
+            app(SefazGuard::class),
+        );
+        $this->assertSame(21600, $delay);
+    }
+
+    public function test_quarta_tentativa_falha_nao_reagenda_e_notifica(): void
+    {
+        Storage::fake('local');
+        $unidade = $this->unidadeComCertificado();
+        $user = User::factory()->comTenant($unidade->tenant_id)->create();
+
+        $service = \Mockery::mock(RecuperacaoService::class);
+        $service->shouldReceive('porNsu')
+            ->once()
+            ->andReturn(ResultadoRecuperacao::de(ResultadoRecuperacao::NAO_ENCONTRADO, 0, 'sem nota'));
+
+        (new RecuperarNfeJob($unidade->id, $user->id, null, 999, 4))->handle(
             $service,
             app(SefazGuard::class),
         );
@@ -290,5 +341,43 @@ class RecuperarNfeJobTest extends TestCase
         );
 
         $this->assertGreaterThanOrEqual(60, $delay);
+    }
+
+    /**
+     * O reagendamento é feito com `self::dispatch` DENTRO do handle. Se o job
+     * fosse `ShouldBeUnique` puro, o lock (adquirido no dispatch e liberado só
+     * ao fim do handle) suprimiria o próprio retry em produção (Redis/Horizon).
+     * `ShouldBeUniqueUntilProcessing` libera o lock no INÍCIO do processamento,
+     * permitindo o retry. Este teste trava o contrato.
+     */
+    public function test_job_permite_reagendar_a_si_mesmo_em_producao(): void
+    {
+        $job = new RecuperarNfeJob(1, 1, null, 999);
+
+        // `ShouldBeUniqueUntilProcessing` é subinterface de `ShouldBeUnique`,
+        // mas o framework checa "until processing" PRIMEIRO: o lock é liberado
+        // no início do processamento, viabilizando o `self::dispatch` do retry.
+        $this->assertInstanceOf(
+            ShouldBeUniqueUntilProcessing::class,
+            $job,
+            'O job precisa liberar o lock no início do processamento para poder reagendar.',
+        );
+    }
+
+    /**
+     * Payload enfileirado por uma versão anterior (sem o campo `tentativa`)
+     * precisa desserializar com o default 1, e não estourar TypeError.
+     */
+    public function test_payload_antigo_sem_tentativa_desserializa_com_default(): void
+    {
+        $serializado = serialize(new RecuperarNfeJob(1, 2, 'chave', null));
+
+        // Remove a propriedade `tentativa` do payload, simulando um job
+        // enfileirado antes desta versão.
+        $legado = preg_replace('/tentativa";i:\d+;/', '', $serializado);
+
+        $job = unserialize($legado);
+
+        $this->assertSame(1, $job->tentativa);
     }
 }

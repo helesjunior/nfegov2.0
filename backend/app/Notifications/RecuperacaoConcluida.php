@@ -38,11 +38,19 @@ class RecuperacaoConcluida extends Notification
 
     private function mensagem(): string
     {
-        $esgotado = $this->tentativas > 1
-            ? sprintf('Após %d tentativas automáticas, ', $this->tentativas)
+        // `tentativas` é o TOTAL de execuções (a original + as automáticas).
+        // O aviso fala das automáticas, que é o que se esgotou.
+        $automaticas = $this->tentativas - 1;
+        $esgotado = $automaticas > 0
+            ? sprintf(
+                'Após %d tentativa%s automática%s sem sucesso, ',
+                $automaticas,
+                $automaticas > 1 ? 's' : '',
+                $automaticas > 1 ? 's' : '',
+            )
             : '';
 
-        return match ($this->resultado->status) {
+        $texto = match ($this->resultado->status) {
             ResultadoRecuperacao::ENCONTRADO => sprintf(
                 'Busca de %s concluída: %d nota(s) recuperada(s) e disponível(is) para consulta.',
                 $this->parametro,
@@ -67,5 +75,7 @@ class RecuperacaoConcluida extends Notification
                 $this->resultado->motivo ?? 'erro inesperado.',
             ),
         };
+
+        return ucfirst($texto);
     }
 }
