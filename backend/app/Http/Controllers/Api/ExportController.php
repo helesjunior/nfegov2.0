@@ -8,8 +8,10 @@ use App\Jobs\ExportNfeJob;
 use App\Jobs\ExportXmlJob;
 use App\Models\Concerns\Auditable;
 use App\Models\Nfe;
+use App\Support\TenantContext;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Validation\ValidationException;
 
 /**
  * Exportações assíncronas.
@@ -28,6 +30,7 @@ class ExportController extends Controller
     public function store(IndexNfeRequest $request): JsonResponse
     {
         Gate::authorize('exportAny', Nfe::class);
+        $tenantId = $this->tenantAtivo();
 
         $dados = $request->validated();
         $formato = $dados['formato'] ?? 'csv';
@@ -36,7 +39,7 @@ class ExportController extends Controller
         unset($dados['formato'], $dados['per_page'], $dados['page']);
 
         ExportNfeJob::dispatch(
-            $request->user()->tenant_id,
+            $tenantId,
             $request->user()->id,
             $dados,
             $formato,
@@ -46,7 +49,7 @@ class ExportController extends Controller
             'nfe.export.solicitado',
             ['formato' => $formato, 'filtros' => $dados],
             'tenant',
-            $request->user()->tenant_id,
+            $tenantId,
             $request->user(),
             $request,
         );
@@ -59,12 +62,13 @@ class ExportController extends Controller
     public function xml(IndexNfeRequest $request): JsonResponse
     {
         Gate::authorize('exportAny', Nfe::class);
+        $tenantId = $this->tenantAtivo();
 
         $dados = $request->validated();
         unset($dados['formato'], $dados['per_page'], $dados['page']);
 
         ExportXmlJob::dispatch(
-            $request->user()->tenant_id,
+            $tenantId,
             $request->user()->id,
             $dados,
         );
@@ -73,7 +77,7 @@ class ExportController extends Controller
             'nfe.export_xml.solicitado',
             ['filtros' => $dados],
             'tenant',
-            $request->user()->tenant_id,
+            $tenantId,
             $request->user(),
             $request,
         );
@@ -81,5 +85,23 @@ class ExportController extends Controller
         return response()->json([
             'message' => 'A exportação dos XMLs foi agendada. Você será notificado quando estiver pronta.',
         ], 202);
+    }
+
+    /**
+     * A exportação usa a entidade ATIVA da sessão (a mesma da listagem), e
+     * não o primeiro vínculo do usuário. No modo "Todas" do super-admin não
+     * há entidade ativa: é preciso escolher uma antes de exportar.
+     */
+    private function tenantAtivo(): int
+    {
+        $tenantId = TenantContext::id();
+
+        if ($tenantId === null) {
+            throw ValidationException::withMessages([
+                'tenant' => 'Selecione uma entidade para exportar.',
+            ]);
+        }
+
+        return $tenantId;
     }
 }

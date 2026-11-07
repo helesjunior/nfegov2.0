@@ -154,4 +154,74 @@ class ExportTest extends TestCase
             ->postJson('/api/nfes/export', ['formato' => 'csv'])
             ->assertForbidden();
     }
+
+    /**
+     * Regressão: a exportação usava `users.tenant_id` (o primeiro vínculo) e
+     * não a entidade ativa. Quem trocava de entidade exportava a outra.
+     */
+    public function test_export_usa_a_entidade_ativa_da_sessao(): void
+    {
+        Bus::fake();
+
+        $a = Tenant::factory()->create();
+        $b = Tenant::factory()->create();
+        $user = $this->operador($a);
+        $user->tenants()->syncWithoutDetaching([$b->id]);
+
+        $this->actingAs($user)
+            ->withSession(['tenant_id' => $b->id])
+            ->postJson('/api/nfes/export', ['formato' => 'csv'])
+            ->assertStatus(202);
+
+        $this->actingAs($user)
+            ->withSession(['tenant_id' => $b->id])
+            ->postJson('/api/nfes/export-xml')
+            ->assertStatus(202);
+
+        Bus::assertDispatched(ExportNfeJob::class, fn ($job) => $job->tenantId === $b->id);
+        Bus::assertDispatched(\App\Jobs\ExportXmlJob::class, fn ($job) => $job->tenantId === $b->id);
+    }
+
+    /**
+     * Regressão: super-admin (sem `users.tenant_id`) derrubava a exportação
+     * com erro 500. No modo "Todas" ele precisa escolher uma entidade.
+     */
+    public function test_super_admin_em_todas_precisa_escolher_entidade(): void
+    {
+        Bus::fake();
+
+        $admin = User::factory()->create(['tenant_id' => null]);
+        $admin->assignRole('super-admin');
+        $admin->forceFill([
+            'two_factor_secret' => 'JBSWY3DPEHPK3PXP',
+            'two_factor_confirmed_at' => now(),
+        ])->save();
+
+        $this->actingAs($admin)
+            ->postJson('/api/nfes/export', ['formato' => 'csv'])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors('tenant');
+
+        Bus::assertNotDispatched(ExportNfeJob::class);
+    }
+
+    public function test_super_admin_exporta_a_entidade_selecionada(): void
+    {
+        Bus::fake();
+
+        $tenant = Tenant::factory()->create();
+        $admin = User::factory()->create(['tenant_id' => null]);
+        $admin->assignRole('super-admin');
+        $admin->forceFill([
+            'two_factor_secret' => 'JBSWY3DPEHPK3PXP',
+            'two_factor_confirmed_at' => now(),
+        ])->save();
+
+        $this->actingAs($admin)
+            ->withSession(['tenant_id' => $tenant->id])
+            ->postJson('/api/nfes/export', ['formato' => 'csv'])
+            ->assertStatus(202);
+
+        Bus::assertDispatched(ExportNfeJob::class, fn ($job) => $job->tenantId === $tenant->id);
+    }
 }

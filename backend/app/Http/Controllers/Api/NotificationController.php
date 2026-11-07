@@ -58,9 +58,9 @@ class NotificationController extends Controller
     /**
      * Gera a URL assinada de download a partir do caminho no disco privado.
      *
-     * O caminho tem o formato `exports/{tenant_id}/{arquivo}`; expomos apenas o
-     * nome do arquivo no parâmetro e validamos o tenant no controller de
-     * download.
+     * O caminho tem o formato `exports/{tenant_id}/{arquivo}`. O tenant vai
+     * junto (coberto pela assinatura) e o controller de download confere se o
+     * usuário tem acesso a ele.
      */
     private function urlDeDownload(?string $caminho): ?string
     {
@@ -69,9 +69,13 @@ class NotificationController extends Controller
         }
 
         $arquivo = basename($caminho);
+        $tenant = basename(dirname($caminho));
 
-        return URL::temporarySignedRoute('api.exports.download', now()->addMinutes(30), [
-            'arquivo' => $arquivo,
-        ]);
+        $parametros = ['arquivo' => $arquivo];
+        if (ctype_digit($tenant)) {
+            $parametros['tenant'] = (int) $tenant;
+        }
+
+        return URL::temporarySignedRoute('api.exports.download', now()->addMinutes(30), $parametros);
     }
 }
