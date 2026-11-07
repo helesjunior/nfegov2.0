@@ -4,6 +4,12 @@
 **Status:** aprovado (2026-11-03)
 **Autor:** Heles Resende S. Júnior (sistema), consolidado em sessão de brainstorming
 
+> **Atualização (2026-11-07):** este documento descreve o escopo original (recepção de NF-e).
+> Desde a 2.4.0 o sistema também recebe **NFS-e** pelo Ambiente de Dados Nacional; o design e
+> o que foi confirmado estão em
+> [`docs/superpowers/specs/2026-11-07-nfse-nacional-design.md`](../superpowers/specs/2026-11-07-nfse-nacional-design.md).
+> O estado atual do sistema está no [`README.md`](../../README.md).
+
 ---
 
 ## 1. Intenção e o porquê

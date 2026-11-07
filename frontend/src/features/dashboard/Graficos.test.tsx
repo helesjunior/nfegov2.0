@@ -34,6 +34,35 @@ describe('GraficoPorDia', () => {
   })
 })
 
+describe('GraficoPorDia (NFS-e)', () => {
+  it('usa os textos de NFS-e', () => {
+    render(<GraficoPorDia dias={dias([2, 1])} documento="NFS-e" />)
+
+    expect(screen.getByRole('heading', { name: 'NFS-e por dia' })).toBeInTheDocument()
+    expect(screen.getByTestId('destaque-dia')).toHaveTextContent('3 NFS-e')
+  })
+})
+
+describe('GraficoFornecedores (NFS-e)', () => {
+  it('chama os emitentes de prestadores', () => {
+    render(
+      <GraficoFornecedores
+        documento="NFS-e"
+        fornecedores={[{ cnpj: '1', nome: 'Serralheria Exemplo', quantidade: 3, valor: 5000 }]}
+      />,
+    )
+
+    expect(screen.getByRole('heading', { name: 'Maiores prestadores' })).toBeInTheDocument()
+    expect(screen.getByRole('listitem')).toHaveAttribute('title', 'Serralheria Exemplo · 3 NFS-e')
+  })
+
+  it('sem prestadores, exibe a mensagem de prestadores', () => {
+    render(<GraficoFornecedores documento="NFS-e" fornecedores={[]} />)
+
+    expect(screen.getByText('Sem notas de prestadores no período.')).toBeInTheDocument()
+  })
+})
+
 describe('GraficoFornecedores', () => {
   it('lista os fornecedores com o valor na ponta da barra', () => {
     render(
