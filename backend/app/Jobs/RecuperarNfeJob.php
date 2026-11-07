@@ -201,7 +201,7 @@ class RecuperarNfeJob implements ShouldBeUnique, ShouldQueue
             // revalida certificado/circuito — sem risco de rajada.
             SyncNfeJob::dispatch($unidade->id);
 
-            $user?->notify(new RecuperacaoConcluida($parametro, $resultado));
+            $user?->notify(new RecuperacaoConcluida($parametro, $resultado, $this->tentativa));
         });
     }
 
