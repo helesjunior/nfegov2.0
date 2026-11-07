@@ -30,6 +30,7 @@ describe('Sidebar', () => {
     renderizar({ permissoes: ['nfe.view'], versao: null })
 
     expect(screen.getByRole('link', { name: 'NF-e' })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'NFS-e' })).toBeInTheDocument()
     expect(screen.queryByRole('link', { name: 'Usuários' })).not.toBeInTheDocument()
     expect(screen.queryByRole('link', { name: 'Entidades' })).not.toBeInTheDocument()
   })

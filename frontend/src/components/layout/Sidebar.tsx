@@ -24,6 +24,7 @@ export interface ItemMenu {
 const ITENS: ItemMenu[] = [
   { para: '/', rotulo: 'Painel', icone: 'painel', exato: true },
   { para: '/nfes', rotulo: 'NF-e', icone: 'documento', permissoes: ['nfe.view'] },
+  { para: '/nfses', rotulo: 'NFS-e', icone: 'documento', permissoes: ['nfe.view'] },
   { para: '/unidades', rotulo: 'Unidades', icone: 'predio', permissoes: ['nfe.view'] },
   { para: '/sync', rotulo: 'Sincronizações', icone: 'sincronizar', permissoes: ['nfe.view'] },
   { para: '/notificacoes', rotulo: 'Notificações', icone: 'sino' },
@@ -49,7 +50,7 @@ export function Sidebar({
   return (
     <aside className="shell__menu">
       <div className="shell__marca">
-        <Logo subtitulo="Recepção de NF-e" />
+        <Logo subtitulo="Recepção de NF-e e NFS-e" />
       </div>
       <div className="shell__secao">Menu</div>
       <nav className="shell__nav">

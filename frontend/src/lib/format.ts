@@ -13,6 +13,22 @@ export function formatarCnpj(cnpj: string | null | undefined): string {
   return digitos.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, '$1.$2.$3/$4-$5')
 }
 
+/** Formata CNPJ (14 dígitos) ou CPF (11 dígitos); outros documentos (NIF) ficam como vieram. */
+export function formatarDocumento(doc: string | null | undefined): string {
+  const digitos = (doc ?? '').replace(/\D/g, '')
+  if (digitos.length === 11) {
+    return digitos.replace(/^(\d{3})(\d{3})(\d{3})(\d{2})$/, '$1.$2.$3-$4')
+  }
+
+  return formatarCnpj(doc)
+}
+
+/** Competência (`aaaa-mm-dd`) como `mm/aaaa`, sem passar por fuso horário. */
+export function formatarCompetencia(data: string | null | undefined): string {
+  const partes = /^(\d{4})-(\d{2})/.exec(data ?? '')
+  return partes ? `${partes[2]}/${partes[1]}` : '—'
+}
+
 /** Formata uma data ISO para `dd/mm/aaaa` (ou `—` se ausente). */
 export function formatarData(iso: string | null | undefined): string {
   if (!iso) return '—'
@@ -51,7 +67,7 @@ export function rotularStatusSync(status: string): string {
     em_andamento: 'Em andamento',
     sucesso: 'Sucesso',
     erro: 'Erro',
-    bloqueado: 'Bloqueado (freio SEFAZ)',
+    bloqueado: 'Bloqueado (freio)',
   }
 
   return mapa[status] ?? status

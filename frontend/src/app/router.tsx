@@ -10,6 +10,8 @@ import { UnidadesPage } from '../features/unidades/UnidadesPage'
 import { SyncPage } from '../features/sync/SyncPage'
 import { NfeListPage } from '../features/nfes/NfeListPage'
 import { NfeDetailPage } from '../features/nfes/NfeDetailPage'
+import { NfseListPage } from '../features/nfses/NfseListPage'
+import { NfseDetailPage } from '../features/nfses/NfseDetailPage'
 import { NotificacoesPage } from '../features/notificacoes/NotificacoesPage'
 import { TenantsPage } from '../features/tenants/TenantsPage'
 import { UsuariosPage } from '../features/usuarios/UsuariosPage'
@@ -62,6 +64,8 @@ export const routes: RouteObject[] = [
       { index: true, element: <DashboardPage /> },
       { path: 'nfes', element: <NfeListPage /> },
       { path: 'nfes/:chave', element: <NfeDetailPage /> },
+      { path: 'nfses', element: <NfseListPage /> },
+      { path: 'nfses/:chave', element: <NfseDetailPage /> },
       { path: 'unidades', element: <UnidadesPage /> },
       { path: 'unidades/:id/certificado', element: <UnidadeCertificadoRoute /> },
       { path: 'sync', element: <SyncPage /> },
