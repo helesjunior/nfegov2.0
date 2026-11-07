@@ -307,6 +307,54 @@ O `seed_demo.php` cria a entidade, uma unidade, os usuários vinculados
 "Todas" no seletor), com MFA já confirmado. Senha de todos: `senha123`. O script imprime as
 credenciais e o segredo TOTP do super-admin (útil para configurar o app autenticador).
 
+## Versionamento
+
+A versão semântica do sistema vive num **arquivo único** — `backend/VERSION`
+(fonte de verdade única) — e é lida em runtime pelo backend
+(`config('nfegov.versao.numero')`) e exposta por `GET /api/version`. O frontend
+exibe no rodapé do menu: `NFeGov2.0 - v. <versão>-<AAAAMMDD.HHMMSS>`.
+
+O timestamp é o **momento da build**, gravado pelo script
+`frontend/scripts/build-info.mjs` em `backend/build.json` quando se roda
+`npm run build` (nunca calculado em runtime). Assim o rodapé mostra de fato
+quando aquele bundle foi construído. `backend/build.json` **não é versionado**.
+
+Para publicar uma nova versão:
+
+1. Edite `backend/VERSION` (ex.: `2.0.1`) e mantenha `frontend/package.json` em
+   sincronia (o mesmo número em `version`).
+2. Rode `cd frontend && npm run build` (gera o `build.json` e a SPA).
+3. A versão aparece automaticamente no rodapé do menu e em `/api/version`.
+
+### Fluxo de trabalho (pull request + controle de versão)
+
+A partir da 2.0.0, **toda mudança entra por pull request** (a `main` é
+protegida — configuração feita no GitHub). O fluxo:
+
+```bash
+# 1. Crie uma branch a partir da main atualizada
+git checkout main && git pull
+git checkout -b feature/minha-mudanca
+
+# 2. Implemente, rode os testes (backend + frontend) e faça o commit
+git commit -am "feat: descreve a mudança"
+
+# 3. Abra o pull request
+git push -u origin feature/minha-mudanca
+# (abrir o PR no GitHub; a proteção da main exige revisão antes do merge)
+
+# 4. Após o merge do PR, atualize `VERSION` conforme o tipo de mudança
+```
+
+Regra de versão (SemVer):
+- **MAJOR** (`2.0.0` → `3.0.0`): mudança incompatível.
+- **MINOR** (`2.0.0` → `2.1.0`): nova funcionalidade compatível.
+- **PATCH** (`2.0.0` → `2.0.1`): correção de bug.
+
+> **Nota:** a proteção de branch (exigir PR e revisão para a `main`) é
+> configurada no painel do GitHub do repositório; este README documenta o
+> processo adotado.
+
 ## Referência da API
 
 Todas as rotas vivem sob `/api`, com autenticação por **Sanctum** (cookie de sessão, SPA
@@ -314,6 +362,7 @@ same-origin) e escopo de tenant por usuário autenticado.
 
 | Método | Rota | Descrição |
 |---|---|---|
+| `GET` | `/api/version` | Versão + timestamp da build (público; rodapé do menu) |
 | `POST` | `/api/login` | Autenticação (etapa 1) |
 | `GET` | `/api/me` | Usuário atual, papéis/permissões, tenant ativo e entidades disponíveis |
 | `POST` | `/api/sessao/tenant` | Define o tenant ativo da sessão (seletor de entidade) |

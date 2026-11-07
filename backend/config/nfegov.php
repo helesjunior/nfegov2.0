@@ -4,6 +4,36 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Versão da aplicação
+    |--------------------------------------------------------------------------
+    |
+    | A versão semântica vive num arquivo único `VERSION` na raiz do
+    | repositório — fonte de verdade única, lida tanto pelo backend quanto
+    | pelo frontend (via `GET /api/version`). O timestamp da build é gravado
+    | em `build.json` (também na raiz) no momento do build; se ainda não
+    | existir, `build_at` fica nulo e o frontend exibe só a versão.
+    |
+    */
+
+    'versao' => [
+        'numero' => trim((string) @file_get_contents(base_path('VERSION'))) ?: '0.0.0',
+
+        // Momento da build (formato `Ymd.His`), gravado pelo script de build.
+        'build_at' => (static function (): ?string {
+            $arquivo = base_path('build.json');
+            if (! is_file($arquivo)) {
+                return null;
+            }
+
+            $dados = json_decode((string) file_get_contents($arquivo), true);
+            $build = is_array($dados) ? ($dados['build_at'] ?? null) : null;
+
+            return is_string($build) && $build !== '' ? $build : null;
+        })(),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Sincronização com a SEFAZ
     |--------------------------------------------------------------------------
     |

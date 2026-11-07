@@ -31,9 +31,11 @@ const ITENS: ItemMenu[] = [
 export function Sidebar({
   permissoes,
   podeTodas = false,
+  versao,
 }: {
   permissoes: string[]
   podeTodas?: boolean
+  versao?: string | null
 }) {
   const visiveis = ITENS.filter(
     (item) =>
@@ -58,6 +60,11 @@ export function Sidebar({
           </NavLink>
         ))}
       </nav>
+      {versao ? (
+        <div className="shell__versao" data-testid="versao-app">
+          NFeGov2.0 - v. {versao}
+        </div>
+      ) : null}
     </aside>
   )
 }
