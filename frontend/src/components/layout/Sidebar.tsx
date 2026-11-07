@@ -1,4 +1,6 @@
 import { NavLink } from 'react-router-dom'
+import { Icone, type NomeIcone } from '../ui/Icone'
+import { Logo } from '../ui/Logo'
 
 /**
  * Navegação lateral.
@@ -13,19 +15,20 @@ import { NavLink } from 'react-router-dom'
 export interface ItemMenu {
   para: string
   rotulo: string
+  icone: NomeIcone
   permissoes?: string[]
   soSuperAdmin?: boolean
   exato?: boolean
 }
 
 const ITENS: ItemMenu[] = [
-  { para: '/', rotulo: 'Painel', exato: true },
-  { para: '/nfes', rotulo: 'NF-e', permissoes: ['nfe.view'] },
-  { para: '/unidades', rotulo: 'Unidades', permissoes: ['nfe.view'] },
-  { para: '/sync', rotulo: 'Sincronizações', permissoes: ['nfe.view'] },
-  { para: '/notificacoes', rotulo: 'Notificações' },
-  { para: '/usuarios', rotulo: 'Usuários', permissoes: ['usuario.gerenciar'] },
-  { para: '/entidades', rotulo: 'Entidades', soSuperAdmin: true },
+  { para: '/', rotulo: 'Painel', icone: 'painel', exato: true },
+  { para: '/nfes', rotulo: 'NF-e', icone: 'documento', permissoes: ['nfe.view'] },
+  { para: '/unidades', rotulo: 'Unidades', icone: 'predio', permissoes: ['nfe.view'] },
+  { para: '/sync', rotulo: 'Sincronizações', icone: 'sincronizar', permissoes: ['nfe.view'] },
+  { para: '/notificacoes', rotulo: 'Notificações', icone: 'sino' },
+  { para: '/usuarios', rotulo: 'Usuários', icone: 'usuarios', permissoes: ['usuario.gerenciar'] },
+  { para: '/entidades', rotulo: 'Entidades', icone: 'instituicao', soSuperAdmin: true },
 ]
 
 export function Sidebar({
@@ -45,7 +48,10 @@ export function Sidebar({
 
   return (
     <aside className="shell__menu">
-      <div className="shell__marca">NF-e Gov</div>
+      <div className="shell__marca">
+        <Logo subtitulo="Recepção de NF-e" />
+      </div>
+      <div className="shell__secao">Menu</div>
       <nav className="shell__nav">
         {visiveis.map((item) => (
           <NavLink
@@ -56,7 +62,8 @@ export function Sidebar({
               `shell__link${isActive ? ' shell__link--ativo' : ''}`
             }
           >
-            {item.rotulo}
+            <Icone nome={item.icone} />
+            <span>{item.rotulo}</span>
           </NavLink>
         ))}
       </nav>

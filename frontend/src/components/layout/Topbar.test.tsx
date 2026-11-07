@@ -1,4 +1,5 @@
 import { render, screen } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { describe, it, expect, vi } from 'vitest'
@@ -25,5 +26,25 @@ describe('Topbar', () => {
     )
     const link = screen.getByRole('link', { name: /minha conta/i })
     expect(link).toHaveAttribute('href', '/minha-conta')
+  })
+
+  it('alterna entre tema claro (padrão) e escuro, lembrando a escolha', async () => {
+    localStorage.removeItem('nfegov.tema')
+    delete document.documentElement.dataset.tema
+    const user = userEvent.setup()
+    render(
+      <QueryClientProvider client={new QueryClient()}>
+        <MemoryRouter>
+          <Topbar usuario={usuario} />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    )
+
+    await user.click(screen.getByRole('button', { name: /ativar tema escuro/i }))
+    expect(document.documentElement.dataset.tema).toBe('escuro')
+    expect(localStorage.getItem('nfegov.tema')).toBe('escuro')
+
+    await user.click(screen.getByRole('button', { name: /ativar tema claro/i }))
+    expect(document.documentElement.dataset.tema).toBe('claro')
   })
 })
