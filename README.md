@@ -124,6 +124,16 @@ próxima execução do scheduler volta a sincronizá-la automaticamente.
 Ao receber um `resNFe` (resumo), o sistema dá **ciência da operação** automaticamente e
 reconsulta o download para obter o XML completo. Nenhuma outra manifestação é emitida.
 
+### Recuperação manual de NF-e — retentativa automática
+
+O usuário pode resgatar uma nota pontualmente informando a **chave** (44 dígitos) ou o
+**NSU**. Quando essa busca não encontra a nota (`nao_encontrado`) ou erra (`erro`), o
+sistema **reagenda sozinho** — sem o usuário redigitar a chave — em intervalos
+progressivos (padrão `30 min → 2h → 6h`, 3 tentativas automáticas). Se a SEFAZ estiver com
+o **freio de consumo** acionado (`bloqueado`), a próxima tentativa espera o freio fechar e
+**não** consome uma das três tentativas. Só após esgotá-las o usuário é notificado com o
+erro. Os intervalos são configuráveis em `NFEGOV_RECUPERACAO_BACKOFF_MINUTES`.
+
 ### Certificado digital e-CNPJ
 
 - Um certificado (PFX) **atual** por unidade. O upload é feito pela SPA, na tela da unidade.

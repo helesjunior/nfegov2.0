@@ -19,6 +19,7 @@ class RecuperacaoConcluida extends Notification
     public function __construct(
         public readonly string $parametro,
         public readonly ResultadoRecuperacao $resultado,
+        public readonly int $tentativas = 1,
     ) {}
 
     public function via(object $notifiable): array
@@ -37,16 +38,29 @@ class RecuperacaoConcluida extends Notification
 
     private function mensagem(): string
     {
-        return match ($this->resultado->status) {
+        // `tentativas` é o TOTAL de execuções (a original + as automáticas).
+        // O aviso fala das automáticas, que é o que se esgotou.
+        $automaticas = $this->tentativas - 1;
+        $esgotado = $automaticas > 0
+            ? sprintf(
+                'Após %d tentativa%s automática%s sem sucesso, ',
+                $automaticas,
+                $automaticas > 1 ? 's' : '',
+                $automaticas > 1 ? 's' : '',
+            )
+            : '';
+
+        $texto = match ($this->resultado->status) {
             ResultadoRecuperacao::ENCONTRADO => sprintf(
                 'Busca de %s concluída: %d nota(s) recuperada(s) e disponível(is) para consulta.',
                 $this->parametro,
                 $this->resultado->docsCount,
             ),
             ResultadoRecuperacao::NAO_ENCONTRADO => sprintf(
-                'Busca de %s concluída, mas o documento não foi encontrado: %s '
+                '%sbusca de %s não teve sucesso: %s '
                 .'Se a nota é recente, o emitente pode ainda não tê-la disponibilizado à SEFAZ; '
                 .'caso contrário, confirme o destinatário com o emitente.',
+                $esgotado,
                 $this->parametro,
                 $this->resultado->motivo ?? 'a SEFAZ não devolveu nenhum documento.',
             ),
@@ -55,10 +69,13 @@ class RecuperacaoConcluida extends Notification
                 $this->parametro,
             ),
             default => sprintf(
-                'Busca de %s falhou: %s',
+                '%sbusca de %s falhou: %s',
+                $esgotado,
                 $this->parametro,
                 $this->resultado->motivo ?? 'erro inesperado.',
             ),
         };
+
+        return ucfirst($texto);
     }
 }
