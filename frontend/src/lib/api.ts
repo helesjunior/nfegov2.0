@@ -86,6 +86,22 @@ export const authApi = {
   },
 }
 
+// ---- Versão / build ---------------------------------------------------------
+
+/** Versão da aplicação + timestamp da build (rodapé do menu). */
+export interface VersaoBuild {
+  versao: string
+  build_at: string | null
+  rotulo: string
+}
+
+export const versaoApi = {
+  async obter(): Promise<VersaoBuild> {
+    const { data } = await http.get<{ data: VersaoBuild }>('/version')
+    return data.data
+  },
+}
+
 // ---- Sessão / Tenant ativo --------------------------------------------------
 
 export const sessaoApi = {
