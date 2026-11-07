@@ -44,21 +44,24 @@ class NfeController extends Controller
         $perPage = (int) ($filtros['per_page'] ?? 25);
 
         return NfeResource::collection(
-            $this->query->build($filtros)->latest('data_emissao')->paginate($perPage)
+            $this->query->build($filtros)
+                ->with(NfeQuery::comUnidade())
+                ->latest('data_emissao')
+                ->paginate($perPage)
         );
     }
 
     public function show(Request $request, string $chave): JsonResponse
     {
-        $nfe = $this->resolver($chave);
+        $nfe = $this->resolver($request, $chave);
 
         Gate::authorize('view', $nfe);
 
-        $resource = (new NfeResource($nfe->load('itens')));
+        $resource = (new NfeResource($nfe->load(['itens', ...NfeQuery::comUnidade()])));
 
         // URL assinada/temporária do XML apenas para quem pode exportar.
         if ($nfe->xml_path !== null && Gate::allows('downloadXml', $nfe)) {
-            $resource->comXmlUrl($this->urlAssinada($chave));
+            $resource->comXmlUrl($this->urlAssinada($nfe));
         }
 
         return $resource->response();
@@ -70,7 +73,7 @@ class NfeController extends Controller
     public function xml(Request $request, string $chave): Response
     {
         // A assinatura é verificada pelo middleware `signed` na rota.
-        $nfe = $this->resolver($chave);
+        $nfe = $this->resolver($request, $chave);
 
         Gate::authorize('downloadXml', $nfe);
 
@@ -92,7 +95,7 @@ class NfeController extends Controller
      */
     public function danfe(Request $request, string $chave): Response
     {
-        $nfe = $this->resolver($chave);
+        $nfe = $this->resolver($request, $chave);
 
         Gate::authorize('export', $nfe);
 
@@ -115,21 +118,34 @@ class NfeController extends Controller
 
     /**
      * Resolve a NF-e por chave dentro do escopo do tenant. 404 se ausente.
+     *
+     * A mesma chave pode existir em mais de uma unidade da entidade (cada
+     * unidade guarda a sua cópia). `?unidade_id=` escolhe qual; sem ele, vale
+     * o registro mais antigo (comportamento estável para links antigos).
      */
-    private function resolver(string $chave): Nfe
+    private function resolver(Request $request, string $chave): Nfe
     {
-        return Nfe::where('chave', $chave)->firstOrFail();
+        $unidadeId = $request->query('unidade_id');
+
+        return Nfe::where('chave', $chave)
+            ->when(
+                is_numeric($unidadeId),
+                fn ($q) => $q->where('unidade_id', (int) $unidadeId),
+            )
+            ->orderBy('id')
+            ->firstOrFail();
     }
 
     /**
-     * URL assinada e temporária para download do XML (5 minutos).
+     * URL assinada e temporária para download do XML (5 minutos), presa à
+     * unidade da nota (a assinatura cobre o `unidade_id`).
      */
-    private function urlAssinada(string $chave): string
+    private function urlAssinada(Nfe $nfe): string
     {
         return URL::temporarySignedRoute(
             'api.nfes.xml',
             now()->addMinutes(5),
-            ['chave' => $chave],
+            ['chave' => $nfe->chave, 'unidade_id' => $nfe->unidade_id],
         );
     }
 }

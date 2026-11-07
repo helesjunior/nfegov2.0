@@ -33,4 +33,17 @@ class NfeQuery
                     ->orWhere('chave', 'ilike', "%{$termo}%");
             }));
     }
+
+    /**
+     * Eager load da unidade da nota (nome/CNPJ), inclusive unidade desativada
+     * por soft delete: a nota continua sendo dela.
+     *
+     * @return array<string, \Closure>
+     */
+    public static function comUnidade(): array
+    {
+        return [
+            'unidade' => fn ($q) => $q->withTrashed()->select('id', 'tenant_id', 'nome', 'nome_resumido', 'cnpj'),
+        ];
+    }
 }

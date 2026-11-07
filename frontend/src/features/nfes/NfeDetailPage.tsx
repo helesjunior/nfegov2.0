@@ -1,4 +1,4 @@
-import { Link, useParams } from 'react-router-dom'
+import { Link, useParams, useSearchParams } from 'react-router-dom'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { nfeApi, mensagemDeErro } from '../../lib/api'
 import { formatarCnpj, formatarDataHora, formatarMoeda } from '../../lib/format'
@@ -12,17 +12,21 @@ import { formatarCnpj, formatarDataHora, formatarMoeda } from '../../lib/format'
  */
 export function NfeDetailPage() {
   const { chave = '' } = useParams()
+  // A mesma chave pode existir em mais de uma unidade: `?unidade=` escolhe a cópia.
+  const [busca] = useSearchParams()
+  const unidadeId = Number(busca.get('unidade')) || undefined
 
   const { data: nfe, isLoading, isError } = useQuery({
-    queryKey: ['nfe', chave],
-    queryFn: () => nfeApi.obter(chave),
+    queryKey: ['nfe', chave, unidadeId],
+    queryFn: () => nfeApi.obter(chave, unidadeId),
     enabled: chave.length > 0,
   })
 
   const danfe = useMutation({
     mutationFn: async () => {
       // O DANFE é binário (PDF): baixamos via fetch autenticado e abrimos.
-      const resp = await fetch(`/api/nfes/${chave}/danfe`, {
+      const sufixo = nfe ? `?unidade_id=${nfe.unidade_id}` : ''
+      const resp = await fetch(`/api/nfes/${chave}/danfe${sufixo}`, {
         credentials: 'include',
         headers: { Accept: 'application/pdf' },
       })
@@ -74,6 +78,13 @@ export function NfeDetailPage() {
         <dl className="ficha">
           <dt>Chave de acesso</dt>
           <dd style={{ fontFamily: 'var(--fonte-mono)', wordBreak: 'break-all' }}>{nfe.chave}</dd>
+
+          <dt>Unidade</dt>
+          <dd>
+            {nfe.unidade
+              ? `${nfe.unidade.nome_resumido || nfe.unidade.nome} — ${formatarCnpj(nfe.unidade.cnpj)}`
+              : '—'}
+          </dd>
 
           <dt>Emitente</dt>
           <dd>

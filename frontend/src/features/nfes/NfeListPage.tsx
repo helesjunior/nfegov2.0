@@ -8,8 +8,10 @@ import { NfeBuscaForm } from './NfeBuscaForm'
 /**
  * Lista de NF-e recebidas, com filtros e exportação.
  *
- * Os filtros são os mesmos aceitos pela API (período, emitente, valor, chave e
- * busca textual). A exportação reutiliza os filtros aplicados no momento.
+ * Os filtros são os mesmos aceitos pela API (período, unidade, emitente, valor,
+ * chave e busca textual). A exportação reutiliza os filtros aplicados no
+ * momento. A NF-e pertence à unidade (CNPJ) que a recebeu, por isso cada linha
+ * mostra a unidade e o detalhe abre a cópia daquela unidade.
  */
 export function NfeListPage() {
   const navigate = useNavigate()
@@ -93,7 +95,7 @@ export function NfeListPage() {
             <option value="">Todas</option>
             {unidades?.data.map((u) => (
               <option key={u.id} value={u.id}>
-                {u.nome_resumido || u.nome}
+                {u.nome_resumido || u.nome} ({formatarCnpj(u.cnpj)})
               </option>
             ))}
           </select>
@@ -170,6 +172,7 @@ export function NfeListPage() {
             <thead>
               <tr>
                 <th>Emissão</th>
+                <th>Unidade</th>
                 <th>Emitente</th>
                 <th>Número</th>
                 <th>Valor</th>
@@ -182,9 +185,19 @@ export function NfeListPage() {
                 <tr
                   key={nfe.id}
                   style={{ cursor: 'pointer' }}
-                  onClick={() => navigate(`/nfes/${nfe.chave}`)}
+                  onClick={() => navigate(`/nfes/${nfe.chave}?unidade=${nfe.unidade_id}`)}
                 >
                   <td>{formatarData(nfe.data_emissao)}</td>
+                  <td>
+                    {nfe.unidade ? (
+                      <>
+                        <strong>{nfe.unidade.nome_resumido || nfe.unidade.nome}</strong>
+                        <div className="shell__usuario">{formatarCnpj(nfe.unidade.cnpj)}</div>
+                      </>
+                    ) : (
+                      '—'
+                    )}
+                  </td>
                   <td>
                     <strong>{nfe.emitente_nome ?? '—'}</strong>
                     <div className="shell__usuario">{formatarCnpj(nfe.emitente_cnpj)}</div>
@@ -203,7 +216,7 @@ export function NfeListPage() {
               ))}
               {data.data.length === 0 && (
                 <tr>
-                  <td colSpan={6} style={{ textAlign: 'center', color: 'var(--cor-texto-suave)' }}>
+                  <td colSpan={7}style={{ textAlign: 'center', color: 'var(--cor-texto-suave)' }}>
                     Nenhuma NF-e encontrada.
                   </td>
                 </tr>
