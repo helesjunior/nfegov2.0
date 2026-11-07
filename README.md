@@ -145,10 +145,23 @@ municípios são os do ambiente em que a captura foi feita.
 
 ### Sincronização com a SEFAZ (NF-e)
 
-O scheduler roda `SyncNfe` a cada **3 horas, em dias úteis** (ver `routes/console.php`).
+O scheduler roda `SyncNfe` a cada `NFEGOV_SYNC_INTERVAL_HOURS` horas (padrão **3**), só em
+dias úteis enquanto `NFEGOV_SYNC_WEEKDAYS_ONLY=true` (padrão; ver `routes/console.php`).
 Esse comando despacha o `DispatchSyncNfeJob`, que **escalona** as unidades ativas ao longo
-da janela (`slot_window_minutes`, padrão 180 min) para não criar picos — o limite da SEFAZ é
-por IP, e todos os tenants compartilham a mesma saída.
+da janela (`slot_window_minutes`, padrão 180 min, nunca maior que o intervalo) para não criar
+picos — o limite da SEFAZ é por IP, e todos os tenants compartilham a mesma saída.
+
+**Regra de 1 hora da SEFAZ.** Quando a fila de uma unidade é lida até o fim
+(`ultNSU = maxNSU`), a SEFAZ exige 1 hora sem consultá-la; antes disso responde `656`. O
+horário fica em `nsus.fila_vazia_em` e nenhuma consulta pela fila (agendador, comando
+manual, busca manual de nota) sai antes de `NFEGOV_SEFAZ_ESPERA_FILA_VAZIA_MINUTES`
+(padrão 61): o `SyncNfeJob` se reagenda para o fim da espera.
+
+**Continuação.** Se a execução para no teto (150 consultas ou 100 documentos) e a fila
+ainda tem documentos, a próxima parte começa em `NFEGOV_SEFAZ_CONTINUACAO_SECONDS`
+(padrão 60), sem esperar a próxima rodada. Uma unidade nunca tem duas execuções ao mesmo
+tempo. Detalhes e evidências em
+[`docs/superpowers/specs/2026-11-07-ritmo-sync-nfe-design.md`](docs/superpowers/specs/2026-11-07-ritmo-sync-nfe-design.md).
 
 **Freio anti-bloqueio** (réplica dos limites do sistema legado):
 
@@ -394,6 +407,9 @@ Além das chaves padrão do Laravel, o NFeGov lê as seguintes (`config/nfegov.p
 | `NFEGOV_SEFAZ_MAX_ITERACOES` | `150` | Máx. de consultas por execução |
 | `NFEGOV_SEFAZ_MAX_DOCS` | `100` | Máx. de documentos por execução |
 | `NFEGOV_SEFAZ_SLEEP` | `2` | Pausa entre consultas (por execução) |
+| `NFEGOV_SEFAZ_ESPERA_FILA_VAZIA_MINUTES` | `61` | Espera depois de ver a fila vazia (regra de 1 h da SEFAZ) |
+| `NFEGOV_SEFAZ_CONTINUACAO_SECONDS` | `60` | Atraso da próxima parte quando a execução para no teto com a fila cheia |
+| `REDIS_QUEUE_RETRY_AFTER` | `960` | Tempo até um job reservado voltar para a fila; deve ser maior que o `timeout` (900 s) |
 | `NFEGOV_ADN_HABILITADO` | `true` | Liga/desliga a recepção de NFS-e (e o bloco do painel) |
 | `NFEGOV_ADN_URL_PRODUCAO` / `NFEGOV_ADN_URL_HOMOLOGACAO` | `https://adn.nfse.gov.br/contribuintes` / `https://adn.producaorestrita.nfse.gov.br/contribuintes` | API de contribuintes do ADN por `tp_amb` |
 | `NFEGOV_SEFIN_URL_PRODUCAO` / `NFEGOV_SEFIN_URL_HOMOLOGACAO` | `https://sefin.nfse.gov.br/SefinNacional` / `https://sefin.producaorestrita.nfse.gov.br/SefinNacional` | SEFIN Nacional (manifestação) por `tp_amb` |
@@ -530,6 +546,7 @@ Regra de versão (SemVer):
 
 | Versão | O que entrou |
 |---|---|
+| 2.7.0 | Ritmo da NF-e: regra de 1 h da SEFAZ por unidade, continuação automática e intervalo configurável |
 | 2.6.0 | NFS-e no painel (indicadores e gráficos) e documentação atualizada |
 | 2.5.0 | DANFSe local, manifestação do tomador, ZIP de XMLs e busca por chave de NFS-e |
 | 2.4.0 | Recepção de NFS-e pelo Ambiente de Dados Nacional (lista, detalhe, XML, exportação) |

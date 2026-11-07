@@ -105,6 +105,18 @@ class RecuperacaoService
         }
 
         // Tentativa 3: varredura incremental procurando a chave (sem tocar o cursor).
+        // Se a fila foi vista vazia há menos de 1 hora, a SEFAZ devolveria 656:
+        // não varre agora; a retentativa automática volta depois da espera.
+        $espera = Nsu::segundosParaLiberarFila($unidade->id);
+        if ($espera > 0) {
+            return ResultadoRecuperacao::de(
+                ResultadoRecuperacao::BLOQUEADO,
+                0,
+                'A fila desta unidade foi consultada há menos de 1 hora e a SEFAZ exige essa espera. '
+                    .'Nova tentativa a partir das '.now()->addSeconds($espera)->format('H:i').'.',
+            );
+        }
+
         $achou = $this->varrerPorChave($unidade, $chave);
 
         // `null` = bloqueada no meio (656 / circuit breaker): não é "não existe".
@@ -271,6 +283,9 @@ class RecuperacaoService
 
             // Fila esgotada ou a SEFAZ não avançou: nada mais a varrer.
             if ($proximo >= $max || $proximo <= $ultimoNsu) {
+                // Fila vazia: começa a contar a espera de 1 hora da SEFAZ.
+                Nsu::marcarFilaVazia($unidade->id);
+
                 return false;
             }
 

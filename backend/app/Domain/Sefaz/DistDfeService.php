@@ -20,6 +20,11 @@ use Throwable;
  *
  * Documentos `resNFe` (resumo) disparam a ciência da operação e a reconsulta
  * do download; `procNFe` são importados direto.
+ *
+ * REGRA DE 1 HORA: quando a SEFAZ responde com ultNSU = maxNSU, a fila está
+ * vazia e só pode ser consultada de novo depois de 1 hora (senão volta 656).
+ * O horário fica em `nsus.fila_vazia_em` e quem agenda respeita
+ * `Nsu::segundosParaLiberarFila()`.
  */
 class DistDfeService
 {
@@ -31,8 +36,11 @@ class DistDfeService
 
     /**
      * Executa o ciclo de sincronização de uma unidade, atualizando `$run`.
+     *
+     * @return bool true quando parou no teto e a fila ainda tem documentos
+     *              (vale continuar logo, sem esperar a regra de 1 hora).
      */
-    public function sync(Unidade $unidade, SyncRun $run): void
+    public function sync(Unidade $unidade, SyncRun $run): bool
     {
         $config = config('nfegov.sefaz');
         $maxIteracoes = (int) ($config['max_iteracoes'] ?? 150);
@@ -52,6 +60,7 @@ class DistDfeService
 
         $ultimoNsu = (int) $nsu->ultimo_nsu;
         $docs = 0;
+        $filaVazia = false;
 
         try {
             for ($i = 0; $i < $maxIteracoes; $i++) {
@@ -68,15 +77,27 @@ class DistDfeService
                 if ($envelope['cStat'] === '656') {
                     $this->guard->tripCircuitBreaker($unidade);
 
-                    $run->forceFill(['status' => SyncRun::STATUS_BLOQUEADO])->save();
+                    $run->forceFill([
+                        'finalizado_em' => now(),
+                        'nsu_final' => $ultimoNsu,
+                        'docs_count' => $docs,
+                        'status' => SyncRun::STATUS_BLOQUEADO,
+                        'erro' => mb_substr('SEFAZ: '.$envelope['xMotivo'], 0, 2000),
+                    ])->save();
 
-                    return;
+                    return false;
                 }
 
                 if (! in_array($envelope['cStat'], ['137', '138'], true)) {
-                    $run->forceFill(['status' => SyncRun::STATUS_ERRO, 'erro' => $envelope['xMotivo']])->save();
+                    $run->forceFill([
+                        'finalizado_em' => now(),
+                        'nsu_final' => $ultimoNsu,
+                        'docs_count' => $docs,
+                        'status' => SyncRun::STATUS_ERRO,
+                        'erro' => $envelope['xMotivo'],
+                    ])->save();
 
-                    return;
+                    return false;
                 }
 
                 $nsuPrevio = $ultimoNsu;
@@ -112,6 +133,7 @@ class DistDfeService
                 // isso NÃO se encerra no primeiro lote vazio — só quando
                 // alcançamos o maxNSU informado (ou o teto de iterações).
                 if ($ultimoNsu >= (int) $envelope['maxNSU']) {
+                    $filaVazia = true;
                     break;
                 }
 
@@ -119,6 +141,7 @@ class DistDfeService
                 // ultNSU estagnado), não há o que consumir — evita girar em
                 // vão até o teto de iterações.
                 if ($ultimoNsu <= $nsuPrevio && empty($envelope['docs'])) {
+                    $filaVazia = true;
                     break;
                 }
 
@@ -134,6 +157,8 @@ class DistDfeService
                 'docs_count' => $docs,
                 'status' => SyncRun::STATUS_SUCESSO,
             ])->save();
+
+            return ! $filaVazia;
         } catch (Throwable $e) {
             $run->forceFill([
                 'finalizado_em' => now(),
@@ -144,7 +169,11 @@ class DistDfeService
 
             throw $e;
         } finally {
-            $nsu->forceFill(['ultimo_nsu' => $ultimoNsu, 'dh_resp' => now()])->save();
+            $nsu->forceFill(array_filter([
+                'ultimo_nsu' => $ultimoNsu,
+                'dh_resp' => now(),
+                'fila_vazia_em' => $filaVazia ? now() : null,
+            ], fn ($v) => $v !== null))->save();
         }
     }
 

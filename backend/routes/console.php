@@ -20,9 +20,18 @@ Schedule::command(CheckCertificateExpiry::class)->dailyAt('07:00');
 // reflitam o estado "vencendo" antes do carimbo.
 Schedule::command(MarkExpiredCertificates::class)->dailyAt('07:05');
 
-// Sincronização do distDFe a cada 3 horas, em dias úteis. O escalonamento das
-// unidades acontece dentro do job, na janela configurada (padrão 3h).
-Schedule::command(SyncNfe::class)->everyThreeHours()->weekdays()->withoutOverlapping();
+// Sincronização do distDFe a cada `NFEGOV_SYNC_INTERVAL_HOURS` horas (padrão 3),
+// só em dias úteis se `NFEGOV_SYNC_WEEKDAYS_ONLY`. As unidades são escalonadas
+// dentro do intervalo, e a regra de 1 hora da SEFAZ (fila vazia) é respeitada
+// por unidade no `SyncNfeJob`.
+$intervaloNfe = max(1, min(23, (int) config('nfegov.sync.interval_hours', 3)));
+$syncNfe = Schedule::command(SyncNfe::class)
+    ->cron("0 */{$intervaloNfe} * * *")
+    ->withoutOverlapping();
+
+if (config('nfegov.sync.weekdays_only', true)) {
+    $syncNfe->weekdays();
+}
 
 // Recepção de NFS-e pelo ADN, mesma cadência da NF-e. Fila e freio próprios.
 Schedule::command(SyncNfse::class)->everyThreeHours()->weekdays()->withoutOverlapping();

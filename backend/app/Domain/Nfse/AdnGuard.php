@@ -26,6 +26,14 @@ class AdnGuard extends SefazGuard
         return (int) config('nfegov.adn.'.$chave, config('nfegov.sefaz.'.$chave, $padrao));
     }
 
+    /**
+     * A NFS-e tem agendamento próprio (3 h); usa só a janela do ADN.
+     */
+    protected function janelaMinutos(): int
+    {
+        return max(1, $this->config('slot_window_minutes', 180));
+    }
+
     protected function nomeServico(): string
     {
         return 'ao ADN (NFS-e)';

@@ -106,7 +106,11 @@ class RecuperarNfeJob implements ShouldBeUniqueUntilProcessing, ShouldQueue
         $minutos = $backoff[$indice] ?? (end($backoff) ?: 30);
 
         if ($resultado->status === ResultadoRecuperacao::BLOQUEADO) {
-            $minutos = max($minutos, $guard->minutosRestantesDoFreio());
+            $minutos = max(
+                $minutos,
+                $guard->minutosRestantesDoFreio(),
+                (int) ceil(\App\Models\Nsu::segundosParaLiberarFila($this->unidadeId) / 60),
+            );
         }
 
         return max(60, (int) $minutos * 60);

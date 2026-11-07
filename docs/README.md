@@ -27,6 +27,7 @@ no [`README.md`](../README.md) da raiz.
 | Recuperação manual de NF-e (chave e NSU) | [`specs/2026-11-06-recuperacao-manual-nfe-design.md`](superpowers/specs/2026-11-06-recuperacao-manual-nfe-design.md) | [`plans/2026-11-06-recuperacao-manual-nfe.md`](superpowers/plans/2026-11-06-recuperacao-manual-nfe.md) |
 | Diagnóstico e correção da recuperação (cStat 137) | [`specs/2026-11-06-diagnostico-recuperacao-nfe-137.md`](superpowers/specs/2026-11-06-diagnostico-recuperacao-nfe-137.md) | [`plans/2026-11-06-correcao-recuperacao-nfe-137.md`](superpowers/plans/2026-11-06-correcao-recuperacao-nfe-137.md) |
 | Retentativa automática da recuperação manual | [`specs/2026-11-07-recuperacao-retentativa-automatica-design.md`](superpowers/specs/2026-11-07-recuperacao-retentativa-automatica-design.md) | [`plans/2026-11-07-recuperacao-retentativa-automatica.md`](superpowers/plans/2026-11-07-recuperacao-retentativa-automatica.md) |
+| Ritmo da sincronização de NF-e (regra de 1 h, continuação, intervalo) | [`specs/2026-11-07-ritmo-sync-nfe-design.md`](superpowers/specs/2026-11-07-ritmo-sync-nfe-design.md) | — |
 | Versionamento | [`specs/2026-11-07-versionamento-design.md`](superpowers/specs/2026-11-07-versionamento-design.md) | — |
 
 ## Capturas de tela

@@ -4,26 +4,37 @@ namespace App\Jobs;
 
 use App\Domain\Sefaz\DistDfeService;
 use App\Domain\Sefaz\SefazGuard;
+use App\Models\Nsu;
 use App\Models\SyncRun;
 use App\Models\Unidade;
 use App\Support\TenantContext;
-use Illuminate\Contracts\Queue\ShouldBeUnique;
+use Illuminate\Contracts\Queue\ShouldBeUniqueUntilProcessing;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
+use Illuminate\Queue\Middleware\WithoutOverlapping;
 use Throwable;
 
 /**
  * Sincroniza o distDFe de UMA unidade.
  *
- * `ShouldBeUnique` por unidade evita execuções concorrentes da mesma unidade
- * (o que geraria consumo duplicado no mesmo NSU). Roda no `TenantContext` da
+ * Uma execução por unidade de cada vez: `ShouldBeUniqueUntilProcessing` deixa
+ * só um job pendente por unidade na fila e `WithoutOverlapping` impede dois
+ * rodando juntos (consumo duplicado no mesmo NSU). Roda no `TenantContext` da
  * unidade e respeita o circuit breaker global.
+ *
+ * Duas regras de tempo:
+ * - fila vista vazia há menos de 1 hora (regra da SEFAZ): não consulta; o job
+ *   se reagenda para quando a espera acabar;
+ * - execução que parou no teto com documentos ainda na fila: a próxima parte
+ *   entra em `continuacao_segundos`, sem esperar a próxima rodada.
  */
-class SyncNfeJob implements ShouldQueue, ShouldBeUnique
+class SyncNfeJob implements ShouldQueue, ShouldBeUniqueUntilProcessing
 {
     use Queueable;
 
     public int $uniqueFor = 3600;
+
+    public int $timeout = 900;
 
     public function __construct(public readonly int $unidadeId)
     {
@@ -36,6 +47,19 @@ class SyncNfeJob implements ShouldQueue, ShouldBeUnique
     public function uniqueId(): string
     {
         return 'sync-unidade-'.$this->unidadeId;
+    }
+
+    /**
+     * Se outra execução da mesma unidade estiver rodando, este job é
+     * descartado (não reenfileirado): a que está rodando já consome a fila.
+     */
+    public function middleware(): array
+    {
+        return [
+            (new WithoutOverlapping('sync-nfe-'.$this->unidadeId))
+                ->dontRelease()
+                ->expireAfter($this->timeout + 60),
+        ];
     }
 
     public function handle(DistDfeService $distDfe, SefazGuard $guard): void
@@ -78,6 +102,15 @@ class SyncNfeJob implements ShouldQueue, ShouldBeUnique
                 return;
             }
 
+            // Regra da SEFAZ: fila vista vazia há menos de 1 hora não pode ser
+            // consultada (656). Reagenda para quando a espera acabar.
+            $espera = Nsu::segundosParaLiberarFila($unidade->id);
+            if ($espera > 0) {
+                self::dispatch($unidade->id)->delay(now()->addSeconds($espera));
+
+                return;
+            }
+
             $run = SyncRun::create([
                 'tenant_id' => $unidade->tenant_id,
                 'unidade_id' => $unidade->id,
@@ -86,7 +119,7 @@ class SyncNfeJob implements ShouldQueue, ShouldBeUnique
             ]);
 
             try {
-                $distDfe->sync($unidade, $run);
+                $haMais = $distDfe->sync($unidade, $run);
             } catch (Throwable $e) {
                 $run->forceFill([
                     'finalizado_em' => now(),
@@ -95,6 +128,13 @@ class SyncNfeJob implements ShouldQueue, ShouldBeUnique
                 ])->save();
 
                 throw $e;
+            }
+
+            // Parou no teto com documentos ainda na fila: a SEFAZ permite seguir
+            // consumindo; a próxima parte entra logo, sem esperar 3 horas.
+            if ($haMais) {
+                self::dispatch($unidade->id)
+                    ->delay(now()->addSeconds((int) config('nfegov.sefaz.continuacao_segundos', 60)));
             }
         });
     }
