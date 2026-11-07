@@ -83,7 +83,7 @@ function LinhaNotificacao({
   const texto =
     dados.tipo === 'recuperacao'
       ? (dados.mensagem ?? 'Busca de NF-e concluída.')
-      : `Exportação ${dados.formato ?? ''} pronta (${dados.total ?? 0} registro(s)).`
+      : `Exportação${dados.documento ? ` de ${dados.documento}` : ''} ${dados.formato ?? ''} pronta (${dados.total ?? 0} registro(s)).`
 
   return (
     <tr style={{ fontWeight: notificacao.lida ? 'normal' : 600 }}>

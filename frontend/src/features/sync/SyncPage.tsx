@@ -20,11 +20,18 @@ const STATUS = [
  */
 export function SyncPage() {
   const [status, setStatus] = useState('')
+  const [tipo, setTipo] = useState<'' | 'nfe' | 'nfse'>('')
   const [pagina, setPagina] = useState(1)
 
   const { data, isLoading, isError } = useQuery({
-    queryKey: ['sync-runs', status, pagina],
-    queryFn: () => syncApi.listar({ status: status || undefined, per_page: 25, page: pagina }),
+    queryKey: ['sync-runs', status, tipo, pagina],
+    queryFn: () =>
+      syncApi.listar({
+        status: status || undefined,
+        tipo: tipo || undefined,
+        per_page: 25,
+        page: pagina,
+      }),
   })
 
   return (
@@ -32,6 +39,22 @@ export function SyncPage() {
       <h1 style={{ marginTop: 0 }}>Sincronizações</h1>
 
       <div className="filtros">
+        <div className="campo">
+          <label htmlFor="tipo">Documento</label>
+          <select
+            id="tipo"
+            value={tipo}
+            onChange={(e) => {
+              setTipo(e.target.value as '' | 'nfe' | 'nfse')
+              setPagina(1)
+            }}
+          >
+            <option value="">Todos</option>
+            <option value="nfe">NF-e (SEFAZ)</option>
+            <option value="nfse">NFS-e (ADN)</option>
+          </select>
+        </div>
+
         <div className="campo">
           <label htmlFor="status">Status</label>
           <select
@@ -63,6 +86,7 @@ export function SyncPage() {
               <tr>
                 <th>Início</th>
                 <th>Fim</th>
+                <th>Documento</th>
                 <th>Status</th>
                 <th>Docs</th>
                 <th>NSU</th>
@@ -74,6 +98,7 @@ export function SyncPage() {
                 <tr key={r.id}>
                   <td>{formatarDataHora(r.iniciado_em)}</td>
                   <td>{formatarDataHora(r.finalizado_em)}</td>
+                  <td>{r.tipo === 'nfse' ? 'NFS-e' : 'NF-e'}</td>
                   <td>
                     <StatusSelo status={r.status} />
                   </td>
@@ -86,7 +111,7 @@ export function SyncPage() {
               ))}
               {data.data.length === 0 && (
                 <tr>
-                  <td colSpan={6} style={{ textAlign: 'center', color: 'var(--cor-texto-suave)' }}>
+                  <td colSpan={7} style={{ textAlign: 'center', color: 'var(--cor-texto-suave)' }}>
                     Nenhuma execução registrada.
                   </td>
                 </tr>

@@ -3,6 +3,7 @@
 use App\Console\Commands\CheckCertificateExpiry;
 use App\Console\Commands\MarkExpiredCertificates;
 use App\Console\Commands\SyncNfe;
+use App\Console\Commands\SyncNfse;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Schedule;
@@ -22,3 +23,6 @@ Schedule::command(MarkExpiredCertificates::class)->dailyAt('07:05');
 // Sincronização do distDFe a cada 3 horas, em dias úteis. O escalonamento das
 // unidades acontece dentro do job, na janela configurada (padrão 3h).
 Schedule::command(SyncNfe::class)->everyThreeHours()->weekdays()->withoutOverlapping();
+
+// Recepção de NFS-e pelo ADN, mesma cadência da NF-e. Fila e freio próprios.
+Schedule::command(SyncNfse::class)->everyThreeHours()->weekdays()->withoutOverlapping();

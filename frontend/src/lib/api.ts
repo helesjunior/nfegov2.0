@@ -385,6 +385,7 @@ export const certificadoApi = {
 export interface SyncRun {
   id: number
   unidade_id: number
+  tipo?: 'nfe' | 'nfse'
   iniciado_em: string | null
   finalizado_em: string | null
   nsu_inicial: number
@@ -396,7 +397,13 @@ export interface SyncRun {
 
 export const syncApi = {
   async listar(
-    filtros: { unidade_id?: number; status?: string; per_page?: number; page?: number } = {},
+    filtros: {
+      unidade_id?: number
+      status?: string
+      tipo?: 'nfe' | 'nfse'
+      per_page?: number
+      page?: number
+    } = {},
   ): Promise<Paginado<SyncRun>> {
     const { data } = await http.get<Paginado<SyncRun>>('/sync-runs', { params: filtros })
     return data
@@ -534,6 +541,89 @@ export const nfeApi = {
   },
 }
 
+// ---- NFS-e (Ambiente de Dados Nacional) ------------------------------------
+
+export type PapelNfse = 'tomador' | 'prestador' | 'intermediario' | 'outro'
+export type SituacaoNfse = 'normal' | 'cancelada' | 'substituida'
+
+export interface NfseEvento {
+  id: number
+  nsu: number
+  tipo_evento: string
+  codigo_evento: string | null
+  descricao: string | null
+  motivo: string | null
+  data_evento: string | null
+}
+
+export interface Nfse {
+  id: number
+  chave: string
+  nsu: number | null
+  papel: PapelNfse
+  situacao: SituacaoNfse
+  numero: string | null
+  serie_dps: string | null
+  numero_dps: string | null
+  unidade_id: number
+  unidade?: NfeUnidade | null
+  municipio_emissor_codigo: string | null
+  municipio_emissor_nome: string | null
+  municipio_incidencia_nome: string | null
+  prestador_documento: string | null
+  prestador_nome: string | null
+  tomador_documento: string | null
+  tomador_nome: string | null
+  intermediario_documento: string | null
+  intermediario_nome: string | null
+  data_emissao: string | null
+  data_processamento: string | null
+  competencia: string | null
+  codigo_servico: string | null
+  servico_nome: string | null
+  descricao_servico: string | null
+  valor_servico: string | number | null
+  valor_liquido: string | number | null
+  valor_iss: string | number | null
+  iss_retido: boolean
+  versao_leiaute: string | null
+  tem_xml: boolean
+  xml_url: string | null
+  eventos?: NfseEvento[]
+}
+
+export interface FiltrosNfse {
+  de?: string
+  ate?: string
+  data?: 'emissao' | 'competencia'
+  unidade_id?: number
+  papel?: PapelNfse
+  situacao?: SituacaoNfse
+  prestador_documento?: string
+  q?: string
+  page?: number
+  per_page?: number
+}
+
+export const nfseApi = {
+  async listar(filtros: FiltrosNfse = {}): Promise<Paginado<Nfse>> {
+    const { data } = await http.get<Paginado<Nfse>>('/nfses', { params: filtros })
+    return data
+  },
+
+  async obter(chave: string, unidadeId?: number): Promise<Nfse> {
+    const { data } = await http.get<{ data: Nfse }>(`/nfses/${chave}`, {
+      params: unidadeId ? { unidade_id: unidadeId } : undefined,
+    })
+    return data.data
+  },
+
+  async exportar(filtros: FiltrosNfse, formato: 'csv' | 'xlsx'): Promise<string> {
+    const { data } = await http.post<{ message: string }>('/nfses/export', { ...filtros, formato })
+    return data.message
+  },
+}
+
 // ---- Notificações -----------------------------------------------------------
 
 export interface Notificacao {
@@ -547,6 +637,7 @@ export interface Notificacao {
     caminho?: string
     formato?: string
     total?: number
+    documento?: string
   }
   url_download: string | null
 }

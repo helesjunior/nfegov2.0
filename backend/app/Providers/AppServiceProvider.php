@@ -4,14 +4,18 @@ namespace App\Providers;
 
 use App\Models\Certificate;
 use App\Models\Nfe;
+use App\Models\Nfse;
 use App\Models\SyncRun;
 use App\Models\Tenant;
 use App\Models\Unidade;
 use App\Models\User;
+use App\Domain\Nfse\AdnClient;
+use App\Domain\Nfse\HttpAdnClient;
 use App\Domain\Sefaz\SefazClient;
 use App\Domain\Sefaz\SpedSefazClient;
 use App\Policies\CertificatePolicy;
 use App\Policies\NfePolicy;
+use App\Policies\NfsePolicy;
 use App\Policies\SyncRunPolicy;
 use App\Policies\TenantPolicy;
 use App\Policies\UnidadePolicy;
@@ -31,6 +35,7 @@ class AppServiceProvider extends ServiceProvider
      */
     protected $policies = [
         Nfe::class => NfePolicy::class,
+        Nfse::class => NfsePolicy::class,
         Unidade::class => UnidadePolicy::class,
         Certificate::class => CertificatePolicy::class,
         SyncRun::class => SyncRunPolicy::class,
@@ -46,6 +51,9 @@ class AppServiceProvider extends ServiceProvider
         // Comunicação com a SEFAZ: implementação real por padrão; testes
         // substituem o binding por um mock (`SefazClient`).
         $this->app->bind(SefazClient::class, SpedSefazClient::class);
+
+        // NFS-e: API de contribuintes do ADN (mTLS). Testes usam um fake.
+        $this->app->bind(AdnClient::class, HttpAdnClient::class);
     }
 
     /**

@@ -99,6 +99,7 @@ return [
     'waits' => [
         'redis:default' => 60,
         'redis:sefaz' => 300,
+        'redis:adn' => 600,
     ],
 
     /*
@@ -221,6 +222,21 @@ return [
             'queue' => ['sefaz'],
             'balance' => false,
             'processes' => (int) env('NFEGOV_SEFAZ_WORKERS', 2),
+            'maxTime' => 0,
+            'maxJobs' => 0,
+            'memory' => 256,
+            'tries' => 1,
+            'timeout' => 900,
+            'nice' => 0,
+        ],
+
+        // Fila da NFS-e (ADN). Outro serviço, outro freio: não disputa os
+        // workers da SEFAZ. A carga histórica se divide em várias execuções.
+        'supervisor-adn' => [
+            'connection' => 'redis',
+            'queue' => ['adn'],
+            'balance' => false,
+            'processes' => (int) env('NFEGOV_ADN_WORKERS', 1),
             'maxTime' => 0,
             'maxJobs' => 0,
             'memory' => 256,
