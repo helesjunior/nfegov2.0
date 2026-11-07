@@ -9,6 +9,8 @@ use App\Http\Controllers\Api\MfaController;
 use App\Http\Controllers\Api\NfeController;
 use App\Http\Controllers\Api\NfeRecuperacaoController;
 use App\Http\Controllers\Api\NfseController;
+use App\Http\Controllers\Api\NfseManifestacaoController;
+use App\Http\Controllers\Api\NfseRecuperacaoController;
 use App\Http\Controllers\Api\NotificationController;
 use App\Http\Controllers\Api\ProfileController;
 use App\Http\Controllers\Api\SessaoTenantController;
@@ -99,10 +101,13 @@ Route::middleware('web')->group(function () {
         // NFS-e (ADN): listagem, exportação, detalhe e XML (assinado).
         Route::get('/nfses', [NfseController::class, 'index'])->name('api.nfses.index');
         Route::post('/nfses/export', [NfseController::class, 'export'])->name('api.nfses.export');
+        Route::post('/nfses/export-xml', [NfseController::class, 'exportXml'])->name('api.nfses.export-xml');
+        Route::post('/nfses/recuperar', [NfseRecuperacaoController::class, 'store'])->name('api.nfses.recuperar');
         Route::get('/nfses/{chave}', [NfseController::class, 'show'])->name('api.nfses.show');
         Route::get('/nfses/{chave}/xml', [NfseController::class, 'xml'])
             ->middleware('signed')
             ->name('api.nfses.xml');
+        Route::get('/nfses/{chave}/danfse', [NfseController::class, 'danfse'])->name('api.nfses.danfse');
 
         // Unidades gestoras.
         Route::get('/unidades', [UnidadeController::class, 'index'])->name('api.unidades.index');
@@ -136,6 +141,10 @@ Route::middleware('web')->group(function () {
     Route::middleware(['auth:sanctum', 'tenant', 'mfa', 'mfa.recent'])->group(function () {
         Route::post('/unidades/{unidade}/certificado', [CertificateController::class, 'store'])
             ->name('api.unidades.certificado.store');
+
+        // Manifestação do tomador sobre a NFS-e: ato fiscal registrado na SEFIN.
+        Route::post('/nfses/{chave}/manifestacao', [NfseManifestacaoController::class, 'store'])
+            ->name('api.nfses.manifestacao');
     });
 
     // Administração de plataforma: Entidades (só super-admin, MFA confirmado).

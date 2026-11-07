@@ -29,12 +29,16 @@ class Nfse extends Model
         'data_emissao' => 'datetime',
         'data_processamento' => 'datetime',
         'competencia' => 'date',
+        'manifestada_em' => 'datetime',
     ];
 
     public const PAPEL_TOMADOR = 'tomador';
     public const PAPEL_PRESTADOR = 'prestador';
     public const PAPEL_INTERMEDIARIO = 'intermediario';
     public const PAPEL_OUTRO = 'outro';
+
+    public const MANIFESTACAO_CONFIRMADA = 'confirmada';
+    public const MANIFESTACAO_REJEITADA = 'rejeitada';
 
     public const SITUACAO_NORMAL = 'normal';
     public const SITUACAO_CANCELADA = 'cancelada';

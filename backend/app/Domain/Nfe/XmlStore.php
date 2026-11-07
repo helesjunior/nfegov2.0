@@ -129,6 +129,15 @@ class XmlStore
         return $this->pastaNfse($tenant, $unidade, $chave).'/eventos/'.$chave.'-'.$nsu.'.xml';
     }
 
+    /**
+     * Evento devolvido pela SEFIN ao registrar a manifestação do tomador:
+     * .../nfses/{ano}/{mes}/eventos/{chave}-manifestacao-{codigo}.xml
+     */
+    public function caminhoManifestacaoNfse(Tenant $tenant, Unidade $unidade, string $chave, string $codigo): string
+    {
+        return $this->pastaNfse($tenant, $unidade, $chave).'/eventos/'.$chave.'-manifestacao-'.$codigo.'.xml';
+    }
+
     private function pastaNfse(Tenant $tenant, Unidade $unidade, string $chave): string
     {
         $raiz = config('nfegov.storage.xml_root', 'tenants');

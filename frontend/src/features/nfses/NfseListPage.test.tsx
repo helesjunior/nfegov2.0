@@ -12,6 +12,7 @@ import { NfseListPage } from './NfseListPage'
 
 const listarMock = vi.fn()
 const exportarMock = vi.fn()
+const exportarXmlMock = vi.fn()
 
 vi.mock('../../lib/api', async () => {
   const actual = await vi.importActual<typeof import('../../lib/api')>('../../lib/api')
@@ -21,6 +22,8 @@ vi.mock('../../lib/api', async () => {
       listar: (...args: unknown[]) => listarMock(...args),
       obter: vi.fn(),
       exportar: (...args: unknown[]) => exportarMock(...args),
+      exportarXml: (...args: unknown[]) => exportarXmlMock(...args),
+      recuperar: vi.fn(),
     },
     unidadesApi: {
       listar: vi.fn().mockResolvedValue({
@@ -30,6 +33,15 @@ vi.mock('../../lib/api', async () => {
     },
   }
 })
+
+vi.mock('../auth/session', () => ({
+  useSessao: () => ({
+    usuario: { id: 1, papeis: ['operador'], permissoes: ['nfe.view', 'sync.executar'] },
+    carregando: false,
+    autenticado: true,
+    recarregar: vi.fn(),
+  }),
+}))
 
 function DetalheFalso() {
   const local = useLocation()
@@ -89,6 +101,7 @@ describe('NfseListPage', () => {
   beforeEach(() => {
     listarMock.mockReset()
     exportarMock.mockReset()
+    exportarXmlMock.mockReset()
     listarMock.mockResolvedValue(paginaMock)
   })
 
@@ -147,5 +160,17 @@ describe('NfseListPage', () => {
 
     expect(exportarMock).toHaveBeenCalledWith({ papel: 'tomador' }, 'xlsx')
     expect(await screen.findByText('A exportação foi agendada.')).toBeInTheDocument()
+  })
+
+  it('exporta os XMLs em ZIP com os filtros aplicados', async () => {
+    const user = userEvent.setup()
+    exportarXmlMock.mockResolvedValue('A exportação dos XMLs foi agendada.')
+    renderPage()
+    await screen.findByText('SERRALHERIA EXEMPLO')
+
+    await user.click(screen.getByRole('button', { name: /exportar xmls/i }))
+
+    expect(exportarXmlMock).toHaveBeenCalledWith({ papel: 'tomador' })
+    expect(await screen.findByText('A exportação dos XMLs foi agendada.')).toBeInTheDocument()
   })
 })
