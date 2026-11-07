@@ -17,6 +17,7 @@ import {
   formatarMoeda,
 } from '../../lib/format'
 import { ROTULO_PAPEL, ROTULO_SITUACAO, classeSituacao } from './rotulos'
+import { NfseBuscaForm } from './NfseBuscaForm'
 
 /**
  * Lista de NFS-e recebidas pelo Ambiente de Dados Nacional.
@@ -56,6 +57,12 @@ export function NfseListPage() {
     onError: (e) => setAviso(mensagemDeErro(e)),
   })
 
+  const exportarXml = useMutation({
+    mutationFn: () => nfseApi.exportarXml(filtros),
+    onSuccess: (mensagem) => setAviso(mensagem),
+    onError: (e) => setAviso(mensagemDeErro(e)),
+  })
+
   function aplicar(evento: FormEvent) {
     evento.preventDefault()
     setFiltros({
@@ -86,6 +93,7 @@ export function NfseListPage() {
     <div>
       <div className="pagina-topo">
         <h1>NFS-e</h1>
+        <NfseBuscaForm />
       </div>
 
       <form className="filtros" onSubmit={aplicar} noValidate>
@@ -181,6 +189,14 @@ export function NfseListPage() {
           disabled={exportar.isPending}
         >
           Exportar XLSX
+        </button>
+        <button
+          type="button"
+          className="botao botao--secundario"
+          onClick={() => exportarXml.mutate()}
+          disabled={exportarXml.isPending}
+        >
+          Exportar XMLs (ZIP)
         </button>
       </div>
 

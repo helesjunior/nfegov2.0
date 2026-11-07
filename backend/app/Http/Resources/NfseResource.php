@@ -15,6 +15,8 @@ class NfseResource extends JsonResource
 {
     public ?string $xmlUrl = null;
 
+    public bool $podeManifestar = false;
+
     public function toArray(Request $request): array
     {
         return [
@@ -53,6 +55,9 @@ class NfseResource extends JsonResource
             'valor_iss' => $this->valor_iss,
             'iss_retido' => (bool) $this->iss_retido,
             'versao_leiaute' => $this->versao_leiaute,
+            'manifestacao' => $this->manifestacao,
+            'manifestada_em' => $this->manifestada_em?->toIso8601String(),
+            'pode_manifestar' => $this->podeManifestar,
             'tem_xml' => $this->xml_path !== null,
             'xml_url' => $this->xmlUrl,
             'eventos' => $this->whenLoaded('eventos', fn () => $this->eventos->map(fn ($e) => [
@@ -66,6 +71,16 @@ class NfseResource extends JsonResource
             ])->values()),
             'created_at' => $this->created_at?->toIso8601String(),
         ];
+    }
+
+    /**
+     * Só o detalhe calcula (a lista não faz uma checagem por linha).
+     */
+    public function comPodeManifestar(bool $pode): static
+    {
+        $this->podeManifestar = $pode;
+
+        return $this;
     }
 
     public function comXmlUrl(?string $url): static

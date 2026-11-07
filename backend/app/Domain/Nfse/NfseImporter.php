@@ -41,6 +41,16 @@ class NfseImporter
     private const TIPO_POR_CODIGO = [
         '101101' => 'CANCELAMENTO',
         '105102' => 'CANCELAMENTO_POR_SUBSTITUICAO',
+        '203202' => 'CONFIRMACAO_TOMADOR',
+        '203206' => 'REJEICAO_TOMADOR',
+    ];
+
+    /**
+     * Eventos de manifestação do tomador e o estado que deixam na nota.
+     */
+    private const MANIFESTACAO_POR_EVENTO = [
+        'CONFIRMACAO_TOMADOR' => Nfse::MANIFESTACAO_CONFIRMADA,
+        'REJEICAO_TOMADOR' => Nfse::MANIFESTACAO_REJEITADA,
     ];
 
     public function __construct(private readonly XmlStore $store) {}
@@ -184,14 +194,34 @@ class NfseImporter
     private function aplicarSituacao(Nfse $nfse): void
     {
         $situacao = Nfse::SITUACAO_NORMAL;
+        $manifestacao = null;
+        $manifestadaEm = null;
 
-        $tipos = NfseEvento::where('nfse_id', $nfse->id)->orderBy('nsu')->pluck('tipo_evento');
-        foreach ($tipos as $tipo) {
-            $situacao = self::SITUACAO_POR_EVENTO[$tipo] ?? $situacao;
+        $eventos = NfseEvento::where('nfse_id', $nfse->id)->orderBy('nsu')->get(['tipo_evento', 'data_evento']);
+        foreach ($eventos as $evento) {
+            $situacao = self::SITUACAO_POR_EVENTO[$evento->tipo_evento] ?? $situacao;
+
+            if (isset(self::MANIFESTACAO_POR_EVENTO[$evento->tipo_evento])) {
+                $manifestacao = self::MANIFESTACAO_POR_EVENTO[$evento->tipo_evento];
+                $manifestadaEm = $evento->data_evento;
+            }
         }
 
+        $mudancas = [];
+
         if ($nfse->situacao !== $situacao) {
-            $nfse->forceFill(['situacao' => $situacao])->save();
+            $mudancas['situacao'] = $situacao;
+        }
+
+        // A manifestação só é atualizada quando o evento já chegou pela fila:
+        // a registrada agora pelo sistema fica até o ADN entregá-la.
+        if ($manifestacao !== null && $nfse->manifestacao !== $manifestacao) {
+            $mudancas['manifestacao'] = $manifestacao;
+            $mudancas['manifestada_em'] = $manifestadaEm;
+        }
+
+        if ($mudancas !== []) {
+            $nfse->forceFill($mudancas)->save();
         }
     }
 

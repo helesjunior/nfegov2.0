@@ -31,8 +31,7 @@ class DistNfseService
 
     public function __construct(
         private readonly AdnClient $client,
-        private readonly NfseImporter $importer,
-        private readonly DocZipDecoder $decoder,
+        private readonly NfseDocumentoProcessor $processor,
         private readonly AdnGuard $guard,
     ) {}
 
@@ -83,7 +82,7 @@ class DistNfseService
                 }
 
                 foreach ($resposta->documentos as $documento) {
-                    $aviso = $this->processar($unidade, $documento);
+                    $aviso = $this->processor->processar($unidade, $documento);
                     if ($aviso !== null) {
                         $avisos[] = $aviso;
                     }
@@ -118,36 +117,6 @@ class DistNfseService
             throw $e;
         } finally {
             $cursor->forceFill(['ultimo_nsu' => $ultimoNsu, 'dh_resp' => now()])->save();
-        }
-    }
-
-    /**
-     * Grava um documento da fila. Devolve um aviso quando o documento não
-     * pôde ser importado (o cursor segue mesmo assim).
-     *
-     * @param  array{nsu:int, chave:string, tipo_documento:string, tipo_evento:?string, arquivo_xml:string}  $documento
-     */
-    private function processar(Unidade $unidade, array $documento): ?string
-    {
-        try {
-            $xml = $this->decoder->decode($documento['arquivo_xml']);
-
-            match ($documento['tipo_documento']) {
-                'NFSE' => $this->importer->importarNfse($unidade, $xml, $documento['nsu']),
-                'EVENTO' => $this->importer->importarEvento($unidade, $xml, $documento['nsu'], $documento['tipo_evento']),
-                default => null, // DPS, pedidos e CNC não são guardados.
-            };
-
-            return null;
-        } catch (Throwable $e) {
-            Log::warning('NFS-e: documento do ADN ignorado.', [
-                'unidade_id' => $unidade->id,
-                'nsu' => $documento['nsu'],
-                'chave' => $documento['chave'],
-                'erro' => $e->getMessage(),
-            ]);
-
-            return "NSU {$documento['nsu']}: {$e->getMessage()}";
         }
     }
 

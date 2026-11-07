@@ -124,6 +124,12 @@ return [
             2 => env('NFEGOV_ADN_URL_HOMOLOGACAO', 'https://adn.producaorestrita.nfse.gov.br/contribuintes'),
         ],
 
+        // SEFIN Nacional: recebe o pedido de registro de evento (manifestação).
+        'sefin_url' => [
+            1 => env('NFEGOV_SEFIN_URL_PRODUCAO', 'https://sefin.nfse.gov.br/SefinNacional'),
+            2 => env('NFEGOV_SEFIN_URL_HOMOLOGACAO', 'https://sefin.producaorestrita.nfse.gov.br/SefinNacional'),
+        ],
+
         'queue' => env('NFEGOV_ADN_QUEUE', 'adn'),
         'timeout' => (int) env('NFEGOV_ADN_TIMEOUT', 30),
         'rate_per_minute' => (int) env('NFEGOV_ADN_RATE_PER_MINUTE', 30),

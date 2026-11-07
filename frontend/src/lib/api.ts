@@ -587,9 +587,29 @@ export interface Nfse {
   valor_iss: string | number | null
   iss_retido: boolean
   versao_leiaute: string | null
+  manifestacao: 'confirmada' | 'rejeitada' | null
+  manifestada_em: string | null
+  pode_manifestar?: boolean
   tem_xml: boolean
   xml_url: string | null
   eventos?: NfseEvento[]
+}
+
+/** Motivos da Rejeição do tomador (`cMotivo` da SEFIN Nacional). */
+export const MOTIVOS_REJEICAO_NFSE: { codigo: number; rotulo: string }[] = [
+  { codigo: 1, rotulo: 'NFS-e em duplicidade' },
+  { codigo: 2, rotulo: 'NFS-e já emitida pelo tomador' },
+  { codigo: 3, rotulo: 'Não ocorrência do fato gerador' },
+  { codigo: 4, rotulo: 'Erro na responsabilidade tributária' },
+  { codigo: 5, rotulo: 'Erro no valor, deduções, serviço ou data' },
+  { codigo: 9, rotulo: 'Outros' },
+]
+
+export interface PedidoManifestacaoNfse {
+  unidade_id: number
+  acao: 'confirmar' | 'rejeitar'
+  motivo?: number
+  descricao?: string
 }
 
 export interface FiltrosNfse {
@@ -621,6 +641,26 @@ export const nfseApi = {
   async exportar(filtros: FiltrosNfse, formato: 'csv' | 'xlsx'): Promise<string> {
     const { data } = await http.post<{ message: string }>('/nfses/export', { ...filtros, formato })
     return data.message
+  },
+
+  async exportarXml(filtros: FiltrosNfse): Promise<string> {
+    const { data } = await http.post<{ message: string }>('/nfses/export-xml', filtros)
+    return data.message
+  },
+
+  /** Busca manual por chave (50 dígitos): roda em segundo plano e avisa em Notificações. */
+  async recuperar(payload: { unidade_id: number; chave: string }): Promise<string> {
+    const { data } = await http.post<{ message: string }>('/nfses/recuperar', payload)
+    return data.message
+  },
+
+  /**
+   * Manifestação do tomador (ato fiscal na SEFIN Nacional). Exige MFA recente:
+   * sem ele o backend responde 403 com `mfa_step_up_required`.
+   */
+  async manifestar(chave: string, pedido: PedidoManifestacaoNfse): Promise<Nfse> {
+    const { data } = await http.post<{ data: Nfse }>(`/nfses/${chave}/manifestacao`, pedido)
+    return data.data
   },
 }
 

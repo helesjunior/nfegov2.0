@@ -7,7 +7,9 @@ use App\Domain\Nfse\NfseQuery;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\IndexNfseRequest;
 use App\Http\Resources\NfseResource;
+use App\Domain\Nfse\Danfse;
 use App\Jobs\ExportNfseJob;
+use App\Jobs\ExportNfseXmlJob;
 use App\Models\Concerns\Auditable;
 use App\Models\Nfse;
 use App\Support\TenantContext;
@@ -55,7 +57,13 @@ class NfseController extends Controller
 
         Gate::authorize('view', $nfse);
 
-        $resource = new NfseResource($nfse->load(['eventos', ...NfseQuery::comUnidade()]));
+        $resource = (new NfseResource($nfse->load(['eventos', ...NfseQuery::comUnidade()])))
+            ->comPodeManifestar(
+                $nfse->papel === Nfse::PAPEL_TOMADOR
+                && $nfse->situacao === Nfse::SITUACAO_NORMAL
+                && $nfse->manifestacao === null
+                && Gate::allows('manifestar', $nfse)
+            );
 
         if ($nfse->xml_path !== null && Gate::allows('downloadXml', $nfse)) {
             $resource->comXmlUrl(URL::temporarySignedRoute(
@@ -114,6 +122,53 @@ class NfseController extends Controller
         return response()->json([
             'message' => 'A exportação foi agendada. Você será notificado quando estiver pronta.',
         ], 202);
+    }
+
+    /**
+     * ZIP assíncrono com os XMLs (e os eventos) das notas filtradas.
+     */
+    public function exportXml(IndexNfseRequest $request): JsonResponse
+    {
+        Gate::authorize('exportAny', Nfse::class);
+
+        $tenantId = TenantContext::id();
+        if ($tenantId === null) {
+            throw ValidationException::withMessages([
+                'tenant' => 'Selecione uma entidade para exportar.',
+            ]);
+        }
+
+        $dados = $request->validated();
+        unset($dados['formato'], $dados['per_page'], $dados['page']);
+
+        ExportNfseXmlJob::dispatch($tenantId, $request->user()->id, $dados);
+
+        $this->audit('nfse.export_xml.solicitado', ['filtros' => $dados], 'tenant', $tenantId, $request->user(), $request);
+
+        return response()->json([
+            'message' => 'A exportação dos XMLs foi agendada. Você será notificado quando estiver pronta.',
+        ], 202);
+    }
+
+    /**
+     * DANFSe (PDF) gerado na hora a partir do XML guardado, no leiaute da NT 008.
+     */
+    public function danfse(Request $request, string $chave, Danfse $danfse): Response
+    {
+        $nfse = $this->resolver($request, $chave);
+
+        Gate::authorize('export', $nfse);
+
+        abort_if($nfse->xml_path === null, 404, 'XML indisponível para gerar o DANFSe.');
+
+        $pdf = $danfse->render($this->store->get($nfse->xml_path), $nfse->situacao);
+
+        $this->audit('nfse.danfse.gerado', [], 'nfse', $nfse->chave, $request->user(), $request);
+
+        return response($pdf, 200, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => 'inline; filename="'.$chave.'.pdf"',
+        ]);
     }
 
     /**

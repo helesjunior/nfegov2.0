@@ -11,6 +11,8 @@ use App\Models\Unidade;
 use App\Models\User;
 use App\Domain\Nfse\AdnClient;
 use App\Domain\Nfse\HttpAdnClient;
+use App\Domain\Nfse\HttpSefinClient;
+use App\Domain\Nfse\SefinClient;
 use App\Domain\Sefaz\SefazClient;
 use App\Domain\Sefaz\SpedSefazClient;
 use App\Policies\CertificatePolicy;
@@ -54,6 +56,9 @@ class AppServiceProvider extends ServiceProvider
 
         // NFS-e: API de contribuintes do ADN (mTLS). Testes usam um fake.
         $this->app->bind(AdnClient::class, HttpAdnClient::class);
+
+        // SEFIN Nacional: registro da manifestação do tomador (mTLS).
+        $this->app->bind(SefinClient::class, HttpSefinClient::class);
     }
 
     /**

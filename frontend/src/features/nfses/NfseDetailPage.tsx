@@ -1,6 +1,8 @@
+import { useState } from 'react'
 import { Link, useParams, useSearchParams } from 'react-router-dom'
-import { useQuery } from '@tanstack/react-query'
-import { nfseApi } from '../../lib/api'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { mensagemDeErro, nfseApi } from '../../lib/api'
+import { ManifestacaoDialog } from './ManifestacaoDialog'
 import {
   formatarCnpj,
   formatarCompetencia,
@@ -14,18 +16,37 @@ import { ROTULO_PAPEL, ROTULO_SITUACAO, classeSituacao, rotularEvento } from './
  * Detalhe de uma NFS-e: partes, serviço, valores e eventos.
  *
  * O XML só é baixável com `nfe.export`: o backend devolve `xml_url`
- * (assinada, 5 min) apenas nesse caso. O DANFSe (PDF) fica para uma próxima
- * versão: a API oficial que o gerava foi desativada em 07/2026.
+ * (assinada, 5 min) apenas nesse caso. O DANFSe (PDF) é gerado pelo backend no
+ * leiaute da NT 008 (a API oficial que o gerava foi desativada). Quando a
+ * unidade é a tomadora e a nota está normal, o painel de manifestação oferece
+ * Confirmar ou Rejeitar (ato fiscal registrado na SEFIN Nacional).
  */
 export function NfseDetailPage() {
   const { chave = '' } = useParams()
   const [busca] = useSearchParams()
   const unidadeId = Number(busca.get('unidade')) || undefined
+  const queryClient = useQueryClient()
+  const [acao, setAcao] = useState<'confirmar' | 'rejeitar' | null>(null)
 
   const { data: nfse, isLoading, isError } = useQuery({
     queryKey: ['nfse', chave, unidadeId],
     queryFn: () => nfseApi.obter(chave, unidadeId),
     enabled: chave.length > 0,
+  })
+
+  const danfse = useMutation({
+    mutationFn: async () => {
+      // O DANFSe é binário (PDF): baixamos via fetch autenticado e abrimos.
+      const sufixo = nfse ? `?unidade_id=${nfse.unidade_id}` : ''
+      const resp = await fetch(`/api/nfses/${chave}/danfse${sufixo}`, {
+        credentials: 'include',
+        headers: { Accept: 'application/pdf' },
+      })
+      if (!resp.ok) throw new Error('Não foi possível gerar o DANFSe.')
+      const blob = await resp.blob()
+      window.open(URL.createObjectURL(blob), '_blank')
+    },
+    onError: (e) => alert(mensagemDeErro(e)),
   })
 
   if (isLoading) return <div className="card">Carregando NFS-e…</div>
@@ -58,6 +79,14 @@ export function NfseDetailPage() {
               Baixar XML
             </button>
           )}
+          <button
+            type="button"
+            className="botao botao--secundario"
+            onClick={() => danfse.mutate()}
+            disabled={danfse.isPending || !nfse.tem_xml}
+          >
+            {danfse.isPending ? 'Gerando…' : 'Gerar DANFSe (PDF)'}
+          </button>
         </div>
 
         <dl className="ficha">
@@ -96,6 +125,34 @@ export function NfseDetailPage() {
             </>
           )}
 
+          {nfse.papel === 'tomador' && (
+            <>
+              <dt>Manifestação do tomador</dt>
+              <dd>
+                {nfse.manifestacao ? (
+                  <>
+                    <span className={nfse.manifestacao === 'confirmada' ? 'selo selo--ok' : 'selo selo--erro'}>
+                      {nfse.manifestacao === 'confirmada' ? 'Confirmada' : 'Rejeitada'}
+                    </span>{' '}
+                    <span className="shell__usuario">{formatarDataHora(nfse.manifestada_em)}</span>
+                  </>
+                ) : nfse.pode_manifestar ? (
+                  <div style={{ display: 'flex', gap: 'var(--esp-2)', alignItems: 'center' }}>
+                    <span className="selo selo--neutro">Pendente</span>
+                    <button type="button" className="botao botao--secundario" onClick={() => setAcao('confirmar')}>
+                      Confirmar
+                    </button>
+                    <button type="button" className="botao botao--secundario" onClick={() => setAcao('rejeitar')}>
+                      Rejeitar
+                    </button>
+                  </div>
+                ) : (
+                  <span className="selo selo--neutro">Não manifestada</span>
+                )}
+              </dd>
+            </>
+          )}
+
           <dt>Município emissor</dt>
           <dd>{nfse.municipio_emissor_nome ?? nfse.municipio_emissor_codigo ?? '—'}</dd>
 
@@ -126,6 +183,19 @@ export function NfseDetailPage() {
           </dd>
         </dl>
       </div>
+
+      {acao && (
+        <ManifestacaoDialog
+          nfse={nfse}
+          acao={acao}
+          onFechar={() => setAcao(null)}
+          onSucesso={(atualizada) => {
+            queryClient.setQueryData(['nfse', chave, unidadeId], { ...nfse, ...atualizada, pode_manifestar: false })
+            queryClient.invalidateQueries({ queryKey: ['nfses'] })
+            setAcao(null)
+          }}
+        />
+      )}
 
       <h2 style={{ marginTop: 'var(--esp-5)' }}>Eventos</h2>
       <div className="card" style={{ padding: 0 }}>

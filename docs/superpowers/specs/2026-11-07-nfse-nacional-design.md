@@ -394,3 +394,102 @@ Diferenças em relação à proposta:
   (`/NFSe/{chave}/Eventos` já está no cliente) e card no painel.
 - Configuração em `nfegov.adn.*` (`NFEGOV_ADN_HABILITADO` liga/desliga; fila
   Horizon `adn` com `NFEGOV_ADN_WORKERS` processos).
+
+## Fase 2 (2.5.0): DANFSe, manifestação, ZIP e busca por chave
+
+Versão **2.5.0** (MINOR): quatro funções novas, sem quebrar nada do que já
+existia. Um migration novo (`manifestacao` e `manifestada_em` em `nfses`).
+
+### Busca manual por chave
+
+`POST /api/nfses/recuperar` (`unidade_id` + chave de 50 dígitos), assíncrona na
+fila `adn`, aviso em Notificações. Exige `sync.executar` e usa
+`GET /NFSe/{chave}/Eventos` do ADN sem mexer no cursor NSU. Pedido igual em
+andamento volta 409. Sem retentativa automática.
+
+Conferido no ADN real: a chave de **outra unidade** volta `E2241` ("não
+referencia o Contribuinte solicitante"), e chave inexistente volta `E2240`.
+Ou seja, não dá para trazer nota de terceiros; o aviso mostra o código.
+
+### ZIP de XMLs
+
+`POST /api/nfses/export-xml`, mesmos filtros da lista. Uma pasta por CNPJ de
+unidade, com os eventos de cada nota em `eventos/`.
+
+### DANFSe local
+
+`GET /api/nfses/{chave}/danfse?unidade_id=` gera o PDF na hora, a partir do XML
+guardado, seguindo a [NT SE/CGNFS-e nº 008 v1.02](https://www.gov.br/nfse/pt-br/biblioteca/documentacao-tecnica/rtc/nt-008-se-cgnfse-danfse-20260714-v1-02.pdf)
+(14/07/2026), que passou a geração do DANFSe para os sistemas: a API do ADN foi
+suspensa em 03/08/2026.
+
+O que segue a NT: A4 retrato em uma página, margens de 2 mm, borda de 1 pt,
+linhas de 0,5 pt, sombreamento cinza nos blocos indicados, fontes 6/7/9 pt como
+a NT define, QR Code para
+`https://www.nfse.gov.br/ConsultaPublica/?tpc=1&chave=` + chave (X 17,48 cm,
+Y 1,67 cm), logomarca oficial da NFS-e no cabeçalho, "NFS-e SEM VALIDADE
+JURÍDICA" em vermelho nas notas de homologação, marca d'água diagonal
+CANCELADA/SUBSTITUÍDA (50 pt ou mais, cinza), frases das supressões (2.3.1) e
+"-" nos campos sem dado.
+
+O que **não** está igual à NT, para ninguém achar que está:
+
+- Fontes: a NT pede Arial e Microsoft Sans Serif. Saem na Helvetica embutida
+  do PDF (equivalente à Arial).
+- Posição de cada campo: segue a ordem de blocos, os tamanhos e as regras
+  escritas da NT, mas **não foi comparada com o desenho do Anexo I** (é uma
+  figura no PDF). Vale conferir lado a lado com um DANFSe oficial.
+- Canhoto (opcional): não é impresso.
+- Bloco de IBS/CBS: só sai quando a nota o traz; os campos dele são um
+  subconjunto dos listados na NT.
+- Descrições de códigos (regime especial, imunidade, tipo de emitente etc.)
+  foram escritas a partir do leiaute nacional e dos exemplos da NT; os códigos
+  sem descrição conhecida saem como o número.
+- Nome do município de tomador e intermediário: o XML só traz o código IBGE;
+  o nome sai quando a própria nota o dá para o mesmo código (emissão,
+  prestação ou incidência), senão sai o código.
+
+Auditoria: `nfse.danfse.gerado`.
+
+### Manifestação do tomador
+
+`POST /api/nfses/{chave}/manifestacao` com `unidade_id` e `acao`
+(`confirmar` ou `rejeitar`; a rejeição leva `motivo` 1 a 5 ou 9 e `descricao`
+de 15 a 255 caracteres, obrigatória no 9). Ato fiscal registrado na **SEFIN
+Nacional** (`POST /nfse/{chave}/eventos`, corpo
+`{"pedidoRegistroEventoXmlGZipB64": ...}`, resposta 201 com o evento em
+GZip+Base64):
+
+- Confirmação = evento `203202`; Rejeição = `203206`. Pedido `pedRegEvento`
+  v1.01, `Id` = `PRE` + chave + código, assinado em `infPedReg` com o
+  certificado da unidade (RSA-SHA1, C14N) e enviado com a declaração
+  `<?xml version="1.0" encoding="UTF-8"?>` (sem ela a SEFIN rejeita com E1229;
+  sem assinatura, E0717).
+- Só vale para nota em que a unidade é **tomadora**, normal (não cancelada nem
+  substituída) e ainda sem manifestação. A confirmação impede o prestador de
+  cancelar a nota (só substituir).
+- Segurança: exige `nfe.export`, **MFA recente** (mesmo step-up da troca de
+  certificado), aceite explícito na tela, trava contra clique duplo e nunca
+  repete sozinho. Cada pedido, aceito ou recusado, fica na auditoria
+  (`nfse.manifestacao.registrada` e `nfse.manifestacao.recusada`).
+- O estado local (`manifestacao`, `manifestada_em`) é gravado assim que a SEFIN
+  registra; quando o evento do tomador chega depois pela fila do ADN
+  (`CONFIRMACAO_TOMADOR`/`REJEICAO_TOMADOR`), ele também atualiza a nota.
+  O XML do evento devolvido fica em `.../eventos/{chave}-manifestacao-{código}.xml`.
+
+**Como foi validado.** O contrato (rota, corpo, resposta, erros, leiaute do
+pedido e assinatura) vem do Swagger da SEFIN lido com o certificado da unidade
+(`https://sefin.producaorestrita.nfse.gov.br/SefinNacional/swagger/docs/v1`) e
+do conhecimento publicado pelo projeto
+[bitize/bitmde](https://github.com/bitize/bitmde/blob/main/.docs/conhecimento/nfse-nacional-sefin-eventos.md),
+que registrou uma Confirmação real em produção. Aqui, na **produção restrita**,
+um pedido assinado com chave **inexistente** voltou `E1831` (a nota não existe
+no ADN): isso prova que codificação, schema e assinatura passaram, e nenhum
+evento foi registrado. **Nenhuma manifestação real foi enviada** durante o
+desenvolvimento: o primeiro uso real fica por conta do usuário, e a Rejeição
+(`203206`) nunca foi exercitada contra o serviço, só a Confirmação por terceiros.
+
+### O que continua de fora
+
+Canhoto do DANFSe, card de NFS-e no painel e a manifestação de intermediário e
+prestador.
