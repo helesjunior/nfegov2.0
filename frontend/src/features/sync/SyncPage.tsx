@@ -123,7 +123,7 @@ export function SyncPage() {
   )
 }
 
-function StatusSelo({ status }: { status: string }) {
+export function StatusSelo({ status }: { status: string }) {
   const classe =
     status === 'sucesso'
       ? 'selo--ok'

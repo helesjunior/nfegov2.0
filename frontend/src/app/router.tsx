@@ -29,7 +29,7 @@ function RotaProtegida({ children }: { children: React.ReactNode }) {
   const local = useLocation()
 
   if (carregando) {
-    return <div className="auth-tela">Carregando…</div>
+    return <div className="carregando-tela">Carregando…</div>
   }
 
   if (!autenticado) {

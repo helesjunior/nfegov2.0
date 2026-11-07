@@ -2,27 +2,40 @@
  * Design tokens do sistema.
  *
  * Centraliza cores, espaçamentos, raios e tipografia para manter a interface
- * consistente. Suporta tema claro e escuro (respeitando a preferência do
- * sistema e com sobrescrita manual via `data-tema`).
+ * consistente. O tema CLARO é o padrão; o escuro é opcional e ativado pelo
+ * botão da barra superior (grava `data-tema="escuro"` no <html>).
  */
 
 :root {
-  /* Cores — tema claro */
-  --cor-fundo: #f6f7f9;
-  --cor-superficie: #ffffff;
-  --cor-superficie-2: #f0f2f5;
-  --cor-borda: #d9dee5;
-  --cor-texto: #1b2430;
-  --cor-texto-suave: #5b6673;
+  color-scheme: light;
 
-  --cor-primaria: #14539a;
-  --cor-primaria-forte: #0f3f77;
+  /* Marca */
+  --marca-1: #3b5bfd;
+  --marca-2: #2f7df0;
+  --marca-3: #12b8a6;
+  --marca-degrade: linear-gradient(135deg, var(--marca-1) 0%, var(--marca-2) 55%, var(--marca-3) 100%);
+
+  /* Cores — tema claro */
+  --cor-fundo: #f3f6fb;
+  --cor-superficie: #ffffff;
+  --cor-superficie-2: #f1f4fa;
+  --cor-borda: #e3e8f1;
+  --cor-borda-forte: #cdd5e3;
+  --cor-texto: #111a2e;
+  --cor-texto-suave: #5d6884;
+
+  --cor-primaria: #3355f0;
+  --cor-primaria-forte: #2443d4;
+  --cor-primaria-suave: #ebf0ff;
   --cor-primaria-contraste: #ffffff;
 
-  --cor-sucesso: #1c7c4a;
-  --cor-alerta: #a86400;
-  --cor-erro: #b42318;
-  --cor-info: #14539a;
+  --cor-sucesso: #0f8a5f;
+  --cor-alerta: #b45f06;
+  --cor-erro: #d92d3a;
+  --cor-info: #3355f0;
+
+  --cor-menu: #ffffff;
+  --cor-foco: color-mix(in srgb, var(--cor-primaria) 28%, transparent);
 
   /* Espaçamentos */
   --esp-1: 4px;
@@ -33,44 +46,45 @@
   --esp-6: 32px;
 
   /* Raios e sombras */
-  --raio-1: 4px;
-  --raio-2: 8px;
-  --raio-3: 12px;
-  --sombra-1: 0 1px 2px rgba(16, 24, 40, 0.06), 0 1px 3px rgba(16, 24, 40, 0.1);
+  --raio-1: 6px;
+  --raio-2: 10px;
+  --raio-3: 16px;
+  --sombra-1: 0 1px 2px rgba(17, 26, 46, 0.04), 0 2px 8px rgba(17, 26, 46, 0.05);
+  --sombra-2: 0 8px 24px rgba(17, 26, 46, 0.08), 0 2px 6px rgba(17, 26, 46, 0.05);
+  --sombra-botao: 0 4px 12px color-mix(in srgb, var(--cor-primaria) 30%, transparent);
 
   /* Tipografia */
-  --fonte: system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  --fonte: 'Inter Variable', 'Segoe UI', system-ui, -apple-system, Roboto, Helvetica, Arial, sans-serif;
+  --fonte-titulo: 'Plus Jakarta Sans Variable', 'Inter Variable', 'Segoe UI', system-ui, sans-serif;
   --fonte-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 
-  --layout-largura-menu: 240px;
+  --layout-largura-menu: 256px;
 }
 
-/* Tema escuro por preferência do sistema... */
-@media (prefers-color-scheme: dark) {
-  :root:not([data-tema='claro']) {
-    --cor-fundo: #10151c;
-    --cor-superficie: #171e27;
-    --cor-superficie-2: #1e2733;
-    --cor-borda: #2a3442;
-    --cor-texto: #e7ecf2;
-    --cor-texto-suave: #9aa7b6;
-
-    --cor-primaria: #4d92e0;
-    --cor-primaria-forte: #6ba6ea;
-    --cor-primaria-contraste: #0b1220;
-  }
-}
-
-/* ...e sobrescrita manual explícita. */
+/* Tema escuro (opcional, escolhido pelo usuário). */
 :root[data-tema='escuro'] {
-  --cor-fundo: #10151c;
-  --cor-superficie: #171e27;
-  --cor-superficie-2: #1e2733;
-  --cor-borda: #2a3442;
-  --cor-texto: #e7ecf2;
-  --cor-texto-suave: #9aa7b6;
+  color-scheme: dark;
 
-  --cor-primaria: #4d92e0;
-  --cor-primaria-forte: #6ba6ea;
-  --cor-primaria-contraste: #0b1220;
+  --cor-fundo: #0c1222;
+  --cor-superficie: #131b2e;
+  --cor-superficie-2: #1a2440;
+  --cor-borda: #24304d;
+  --cor-borda-forte: #33426a;
+  --cor-texto: #e8edf7;
+  --cor-texto-suave: #98a3bf;
+
+  --cor-primaria: #6f8bff;
+  --cor-primaria-forte: #8ea4ff;
+  --cor-primaria-suave: #1c2850;
+  --cor-primaria-contraste: #0c1222;
+
+  --cor-sucesso: #34c78f;
+  --cor-alerta: #f0a647;
+  --cor-erro: #ff6b75;
+  --cor-info: #6f8bff;
+
+  --cor-menu: #10172a;
+
+  --sombra-1: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --sombra-2: 0 10px 30px rgba(0, 0, 0, 0.4);
 }

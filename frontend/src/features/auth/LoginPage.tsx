@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { authApi, mensagemDeErro } from '../../lib/api'
+import { AuthLayout } from '../../components/layout/AuthLayout'
 
 /**
  * Tela de login.
@@ -35,47 +36,45 @@ export function LoginPage() {
   }
 
   return (
-    <div className="auth-tela">
-      <div className="card auth-card">
-        <h1 className="auth-titulo">NF-e Gov</h1>
-        <p className="auth-subtitulo">Acesso ao sistema de recepção e consulta de NF-e.</p>
+    <AuthLayout>
+      <h1 className="auth-titulo">Acesse sua conta</h1>
+      <p className="auth-subtitulo">Entre com seu e-mail e senha para acessar o sistema.</p>
 
-        {erro && (
-          <div className="alerta alerta--erro" role="alert">
-            {erro}
-          </div>
-        )}
+      {erro && (
+        <div className="alerta alerta--erro" role="alert">
+          {erro}
+        </div>
+      )}
 
-        <form onSubmit={aoEnviar} noValidate>
-          <div className="campo">
-            <label htmlFor="email">E-mail</label>
-            <input
-              id="email"
-              type="email"
-              autoComplete="username"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-            />
-          </div>
+      <form onSubmit={aoEnviar} noValidate>
+        <div className="campo">
+          <label htmlFor="email">E-mail</label>
+          <input
+            id="email"
+            type="email"
+            autoComplete="username"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
+          />
+        </div>
 
-          <div className="campo">
-            <label htmlFor="senha">Senha</label>
-            <input
-              id="senha"
-              type="password"
-              autoComplete="current-password"
-              value={senha}
-              onChange={(e) => setSenha(e.target.value)}
-              required
-            />
-          </div>
+        <div className="campo">
+          <label htmlFor="senha">Senha</label>
+          <input
+            id="senha"
+            type="password"
+            autoComplete="current-password"
+            value={senha}
+            onChange={(e) => setSenha(e.target.value)}
+            required
+          />
+        </div>
 
-          <button type="submit" className="botao" disabled={login.isPending} style={{ width: '100%' }}>
-            {login.isPending ? 'Entrando…' : 'Entrar'}
-          </button>
-        </form>
-      </div>
-    </div>
+        <button type="submit" className="botao botao--bloco" disabled={login.isPending}>
+          {login.isPending ? 'Entrando…' : 'Entrar'}
+        </button>
+      </form>
+    </AuthLayout>
   )
 }

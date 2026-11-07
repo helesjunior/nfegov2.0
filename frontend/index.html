@@ -1,11 +1,19 @@
 <!doctype html>
-<html lang="pt-BR">
+<html lang="pt-BR" data-tema="claro">
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="color-scheme" content="light dark" />
-    <title>NF-e Gov — Recepção e Consulta de NF-e</title>
+    <meta name="theme-color" content="#3355f0" />
+    <title>NFeGov 2.0 — Recepção e Consulta de NF-e</title>
+    <script>
+      // Aplica o tema salvo antes do primeiro paint (evita "piscar" claro→escuro).
+      try {
+        if (localStorage.getItem('nfegov.tema') === 'escuro') {
+          document.documentElement.dataset.tema = 'escuro'
+        }
+      } catch (e) {}
+    </script>
   </head>
   <body>
     <div id="root"></div>
