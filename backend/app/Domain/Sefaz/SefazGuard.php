@@ -3,6 +3,7 @@
 namespace App\Domain\Sefaz;
 
 use App\Models\Unidade;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Cache;
 use RuntimeException;
 
@@ -53,7 +54,7 @@ class SefazGuard
     {
         $teto = (int) config('nfegov.sefaz.rate_per_minute', 30);
 
-        $chave = self::CHAVE_RATE . now()->format('YmdHi');
+        $chave = self::CHAVE_RATE.now()->format('YmdHi');
 
         // Incrementa e expira em ~2 minutos (limpa janelas antigas).
         $atual = Cache::increment($chave);
@@ -81,6 +82,26 @@ class SefazGuard
     public function isOpen(): bool
     {
         return Cache::has(self::CHAVE_CIRCUITO);
+    }
+
+    /**
+     * Minutos restantes até o freio fechar. `0` quando fechado.
+     *
+     * Usado para adiar a próxima tentativa da recuperação manual: se o freio
+     * está aberto, não adianta reagendar antes de ele fechar.
+     */
+    public function minutosRestantesDoFreio(): int
+    {
+        $dados = Cache::get(self::CHAVE_CIRCUITO);
+
+        if (! is_array($dados) || ! isset($dados['aberto_em'])) {
+            return 0;
+        }
+
+        $minutos = (int) config('nfegov.sefaz.circuit_breaker_minutes', 60);
+        $fechaEm = Carbon::parse($dados['aberto_em'])->addMinutes($minutos);
+
+        return max(0, (int) ceil(now()->diffInSeconds($fechaEm, false) / 60));
     }
 
     /**
