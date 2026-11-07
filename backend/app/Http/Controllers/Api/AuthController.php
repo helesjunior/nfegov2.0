@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Services\TwoFactorService;
 use App\Services\UserPresenter;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -49,6 +50,9 @@ class AuthController extends Controller
 
         RateLimiter::clear($chave);
         $request->session()->regenerate();
+
+        // Login novo: o segundo fator ainda não foi informado nesta sessão.
+        $request->session()->forget(TwoFactorService::SESSAO_VERIFICADO);
 
         /** @var User $user */
         $user = Auth::user();

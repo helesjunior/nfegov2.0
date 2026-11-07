@@ -79,6 +79,7 @@ class MfaController extends Controller
 
         $user->forceFill(['two_factor_confirmed_at' => now()])->save();
         $this->twoFactor->marcarRecente($user);
+        $this->twoFactor->marcarVerificadoNaSessao($user);
 
         return response()->json(['message' => 'MFA confirmado com sucesso.']);
     }
@@ -108,6 +109,7 @@ class MfaController extends Controller
         }
 
         $this->twoFactor->marcarRecente($user);
+        $this->twoFactor->marcarVerificadoNaSessao($user);
 
         return response()->json([
             'message' => 'Verificação de segurança renovada.',

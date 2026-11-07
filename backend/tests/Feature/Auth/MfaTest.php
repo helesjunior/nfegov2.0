@@ -159,4 +159,85 @@ class MfaTest extends TestCase
         $this->assertArrayNotHasKey('two_factor_secret', $resp);
         $this->assertArrayNotHasKey('password', $resp);
     }
+
+    /**
+     * Usuário com MFA já configurado e um segredo conhecido.
+     *
+     * @return array{0: User, 1: string}
+     */
+    private function comMfaAtivo(array $papeis = ['admin-tenant']): array
+    {
+        $u = $this->usuario($papeis);
+        $secret = app(\App\Services\TwoFactorService::class)->gerarSegredo();
+
+        $u->forceFill([
+            'two_factor_secret' => $secret,
+            'two_factor_confirmed_at' => now()->subDay(),
+        ])->save();
+
+        return [$u, $secret];
+    }
+
+    public function test_so_a_senha_nao_libera_a_area_de_negocio_com_mfa_ativo(): void
+    {
+        [$u] = $this->comMfaAtivo();
+
+        $this->actingAsSemMfa($u)->getJson('/api/_test/negocio')
+            ->assertForbidden()
+            ->assertJsonPath('mfa_verificacao_required', true);
+    }
+
+    public function test_codigo_informado_na_sessao_libera_a_area_de_negocio(): void
+    {
+        [$u, $secret] = $this->comMfaAtivo();
+        $codigo = app(\App\Services\TwoFactorService::class)->codigoAtual($secret);
+
+        $this->actingAsSemMfa($u)->getJson('/api/_test/negocio')->assertForbidden();
+
+        $this->actingAsSemMfa($u)->postJson('/api/mfa/verify', ['code' => $codigo])->assertOk();
+
+        $this->actingAsSemMfa($u)->getJson('/api/_test/negocio')->assertOk();
+    }
+
+    public function test_mfa_opcional_ativo_tambem_e_exigido_no_login(): void
+    {
+        [$u] = $this->comMfaAtivo(['operador']);
+
+        $this->actingAsSemMfa($u)->getJson('/api/_test/negocio')
+            ->assertForbidden()
+            ->assertJsonPath('mfa_verificacao_required', true);
+    }
+
+    public function test_login_com_senha_informa_que_falta_o_codigo(): void
+    {
+        [$u] = $this->comMfaAtivo();
+
+        $this->postJson('/api/login', ['email' => $u->email, 'password' => 'senha-forte'])
+            ->assertOk()
+            ->assertJsonPath('user.mfa_verificacao_pendente', true);
+    }
+
+    public function test_verificacao_de_um_usuario_nao_vale_para_outro(): void
+    {
+        [$a] = $this->comMfaAtivo();
+        [$b] = $this->comMfaAtivo();
+
+        // Sessão marcada como verificada para A não libera B.
+        $this->withSession([\App\Services\TwoFactorService::SESSAO_VERIFICADO => $a->id]);
+
+        $this->actingAsSemMfa($b)->getJson('/api/_test/negocio')->assertForbidden();
+    }
+
+    public function test_verify_limita_tentativas(): void
+    {
+        [$u] = $this->comMfaAtivo();
+
+        for ($i = 0; $i < 5; $i++) {
+            $this->actingAsSemMfa($u)->postJson('/api/mfa/verify', ['code' => '000000'])
+                ->assertStatus(422);
+        }
+
+        $this->actingAsSemMfa($u)->postJson('/api/mfa/verify', ['code' => '000000'])
+            ->assertStatus(429);
+    }
 }
