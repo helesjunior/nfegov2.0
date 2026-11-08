@@ -331,6 +331,41 @@ a:hover {
   white-space: nowrap;
 }
 
+/* Cabeçalho ordenável: o botão herda a tipografia do <th>. */
+.tabela__ordenar {
+  all: unset;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  color: inherit;
+  font: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
+  white-space: nowrap;
+}
+
+.tabela__ordenar:hover,
+.tabela__ordenar--ativa {
+  color: var(--cor-texto);
+}
+
+.tabela__ordenar:focus-visible {
+  outline: 2px solid var(--cor-primaria);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+.tabela__seta {
+  font-size: 0.7rem;
+  opacity: 0.45;
+}
+
+.tabela__ordenar--ativa .tabela__seta {
+  opacity: 1;
+  color: var(--cor-primaria);
+}
+
 .tabela tbody tr {
   transition: background 0.12s;
 }

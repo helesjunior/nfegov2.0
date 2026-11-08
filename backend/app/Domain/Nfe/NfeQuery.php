@@ -3,6 +3,7 @@
 namespace App\Domain\Nfe;
 
 use App\Models\Nfe;
+use App\Support\Ordenacao;
 use Illuminate\Database\Eloquent\Builder;
 
 /**
@@ -14,6 +15,16 @@ use Illuminate\Database\Eloquent\Builder;
  */
 class NfeQuery
 {
+    /**
+     * Ordenações aceitas em `?ordem=` (lista branca): chave => [coluna, tipo].
+     */
+    public const ORDENACOES = [
+        'emissao' => ['data_emissao', Ordenacao::NATURAL],
+        'emitente' => ['emitente_nome', Ordenacao::TEXTO],
+        'numero' => ['numero', Ordenacao::NUMERO],
+        'valor' => ['valor_total', Ordenacao::NATURAL],
+    ];
+
     /**
      * @param  array<string, mixed>  $filtros
      */
@@ -32,6 +43,16 @@ class NfeQuery
                     ->orWhere('numero', 'ilike', "%{$termo}%")
                     ->orWhere('chave', 'ilike', "%{$termo}%");
             }));
+    }
+
+    /**
+     * Ordena a listagem. Sem `ordem`, vale a emissão mais recente primeiro.
+     *
+     * @param  array<string, mixed>  $filtros
+     */
+    public function ordenar(Builder $q, array $filtros): Builder
+    {
+        return Ordenacao::aplicar($q, self::ORDENACOES, $filtros['ordem'] ?? 'emissao', $filtros['direcao'] ?? 'desc');
     }
 
     /**

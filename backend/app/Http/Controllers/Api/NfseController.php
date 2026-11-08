@@ -43,10 +43,8 @@ class NfseController extends Controller
         $perPage = (int) ($filtros['per_page'] ?? 25);
 
         return NfseResource::collection(
-            $this->query->build($filtros)
+            $this->query->ordenar($this->query->build($filtros), $filtros)
                 ->with(NfseQuery::comUnidade())
-                ->orderByDesc(NfseQuery::campoData($filtros))
-                ->orderByDesc('id')
                 ->paginate($perPage)
         );
     }

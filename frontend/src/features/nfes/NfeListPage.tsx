@@ -1,9 +1,14 @@
 import { useState, type FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useMutation, useQuery } from '@tanstack/react-query'
-import { nfeApi, unidadesApi, mensagemDeErro, type FiltrosNfe } from '../../lib/api'
+import { nfeApi, unidadesApi, mensagemDeErro, type FiltrosNfe, type OrdemNfe } from '../../lib/api'
 import { formatarCnpj, formatarData, formatarMoeda } from '../../lib/format'
 import { NfeBuscaForm } from './NfeBuscaForm'
+import { ColunaOrdenavel } from '../../components/ui/ColunaOrdenavel'
+import { proximaOrdem, type Ordem } from '../../lib/ordem'
+
+/** Sentido inicial de cada coluna ao ser escolhida. */
+const DIRECAO_INICIAL = { emissao: 'desc', emitente: 'asc', numero: 'desc', valor: 'desc' } as const
 
 /**
  * Lista de NF-e recebidas, com filtros e exportação.
@@ -12,12 +17,16 @@ import { NfeBuscaForm } from './NfeBuscaForm'
  * chave e busca textual). A exportação reutiliza os filtros aplicados no
  * momento. A NF-e pertence à unidade (CNPJ) que a recebeu, por isso cada linha
  * mostra a unidade e o detalhe abre a cópia daquela unidade.
+ *
+ * Os cabeçalhos de Emissão, Emitente, Número e Valor ordenam a lista (no
+ * servidor, então vale para todas as páginas). A ordem é mantida ao filtrar.
  */
 export function NfeListPage() {
   const navigate = useNavigate()
 
   const [filtros, setFiltros] = useState<FiltrosNfe>({})
   const [pagina, setPagina] = useState(1)
+  const [ordem, setOrdem] = useState<Ordem<OrdemNfe>>({ campo: 'emissao', direcao: 'desc' })
   const [aviso, setAviso] = useState<string | null>(null)
 
   // Rascunho dos campos do formulário (aplicado ao clicar em "Filtrar").
@@ -28,8 +37,9 @@ export function NfeListPage() {
   const [q, setQ] = useState('')
 
   const { data, isLoading, isError } = useQuery({
-    queryKey: ['nfes', filtros, pagina],
-    queryFn: () => nfeApi.listar({ ...filtros, page: pagina }),
+    queryKey: ['nfes', filtros, ordem, pagina],
+    queryFn: () =>
+      nfeApi.listar({ ...filtros, ordem: ordem.campo, direcao: ordem.direcao, page: pagina }),
   })
 
   const { data: unidades } = useQuery({
@@ -58,6 +68,11 @@ export function NfeListPage() {
       emitente_cnpj: emitente || undefined,
       q: q || undefined,
     })
+    setPagina(1)
+  }
+
+  function ordenar(campo: OrdemNfe) {
+    setOrdem((atual) => proximaOrdem(atual, campo, DIRECAO_INICIAL[campo]))
     setPagina(1)
   }
 
@@ -171,11 +186,11 @@ export function NfeListPage() {
           <table className="tabela">
             <thead>
               <tr>
-                <th>Emissão</th>
+                <ColunaOrdenavel campo="emissao" rotulo="Emissão" ordem={ordem} onOrdenar={ordenar} />
                 <th>Unidade</th>
-                <th>Emitente</th>
-                <th>Número</th>
-                <th>Valor</th>
+                <ColunaOrdenavel campo="emitente" rotulo="Emitente" ordem={ordem} onOrdenar={ordenar} />
+                <ColunaOrdenavel campo="numero" rotulo="Número" ordem={ordem} onOrdenar={ordenar} />
+                <ColunaOrdenavel campo="valor" rotulo="Valor" ordem={ordem} onOrdenar={ordenar} />
                 <th>Estado</th>
                 <th>XML</th>
               </tr>
@@ -216,7 +231,7 @@ export function NfeListPage() {
               ))}
               {data.data.length === 0 && (
                 <tr>
-                  <td colSpan={7}style={{ textAlign: 'center', color: 'var(--cor-texto-suave)' }}>
+                  <td colSpan={7} style={{ textAlign: 'center', color: 'var(--cor-texto-suave)' }}>
                     Nenhuma NF-e encontrada.
                   </td>
                 </tr>
