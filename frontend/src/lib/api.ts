@@ -348,6 +348,11 @@ export interface Certificado {
   ativo: boolean
 }
 
+export interface CertificadoDaUnidade {
+  certificado: Certificado | null
+  podeAtualizar: boolean
+}
+
 /**
  * Erro de step-up: o backend exige uma verificação MFA recente.
  *
@@ -360,11 +365,15 @@ export function ehErroDeStepUp(erro: unknown): boolean {
 }
 
 export const certificadoApi = {
-  async obter(unidadeId: number): Promise<Certificado | null> {
-    const { data } = await http.get<{ certificado: Certificado | null }>(
+  /**
+   * Metadados do certificado ativo e se o usuário pode enviar um novo
+   * (admin sempre; operador só com o certificado vencido).
+   */
+  async obter(unidadeId: number): Promise<CertificadoDaUnidade> {
+    const { data } = await http.get<{ certificado: Certificado | null; pode_atualizar?: boolean }>(
       `/unidades/${unidadeId}/certificado`,
     )
-    return data.certificado
+    return { certificado: data.certificado, podeAtualizar: data.pode_atualizar ?? false }
   },
 
   async enviar(unidadeId: number, arquivo: File, senha: string): Promise<Certificado> {

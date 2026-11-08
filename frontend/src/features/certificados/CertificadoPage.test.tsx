@@ -65,16 +65,19 @@ describe('CertificadoPage', () => {
 
   it('exibe a validade e os dias restantes do certificado', async () => {
     obterMock.mockResolvedValue({
-      id: 1,
-      unidade_id: 7,
-      cnpj: '11222333000181',
-      titular: 'ADVOCACIA-GERAL DA UNIAO',
-      emissor: 'AC SOLUTI',
-      valido_de: '2025-01-01T00:00:00+00:00',
-      valido_ate: '2027-01-01T00:00:00+00:00',
-      dias_restantes: 180,
-      vencido: false,
-      ativo: true,
+      podeAtualizar: true,
+      certificado: {
+        id: 1,
+        unidade_id: 7,
+        cnpj: '11222333000181',
+        titular: 'ADVOCACIA-GERAL DA UNIAO',
+        emissor: 'AC SOLUTI',
+        valido_de: '2025-01-01T00:00:00+00:00',
+        valido_ate: '2027-01-01T00:00:00+00:00',
+        dias_restantes: 180,
+        vencido: false,
+        ativo: true,
+      },
     })
 
     renderPage()
@@ -86,16 +89,19 @@ describe('CertificadoPage', () => {
 
   it('sinaliza quando o certificado está vencido', async () => {
     obterMock.mockResolvedValue({
-      id: 1,
-      unidade_id: 7,
-      cnpj: '11222333000181',
-      titular: 'ADVOCACIA-GERAL DA UNIAO',
-      emissor: 'AC SOLUTI',
-      valido_de: '2020-01-01T00:00:00+00:00',
-      valido_ate: '2021-01-01T00:00:00+00:00',
-      dias_restantes: -100,
-      vencido: true,
-      ativo: true,
+      podeAtualizar: true,
+      certificado: {
+        id: 1,
+        unidade_id: 7,
+        cnpj: '11222333000181',
+        titular: 'ADVOCACIA-GERAL DA UNIAO',
+        emissor: 'AC SOLUTI',
+        valido_de: '2020-01-01T00:00:00+00:00',
+        valido_ate: '2021-01-01T00:00:00+00:00',
+        dias_restantes: -100,
+        vencido: true,
+        ativo: true,
+      },
     })
 
     renderPage()
@@ -104,7 +110,7 @@ describe('CertificadoPage', () => {
   })
 
   it('avisa quando não há certificado cadastrado', async () => {
-    obterMock.mockResolvedValue(null)
+    obterMock.mockResolvedValue({ certificado: null, podeAtualizar: true })
 
     renderPage()
 
@@ -116,16 +122,19 @@ describe('CertificadoPage', () => {
     const user = userEvent.setup()
 
     obterMock.mockResolvedValue({
-      id: 1,
-      unidade_id: 7,
-      cnpj: '11222333000181',
-      titular: 'ADVOCACIA-GERAL DA UNIAO',
-      emissor: 'AC SOLUTI',
-      valido_de: '2025-01-01T00:00:00+00:00',
-      valido_ate: '2027-01-01T00:00:00+00:00',
-      dias_restantes: 180,
-      vencido: false,
-      ativo: true,
+      podeAtualizar: true,
+      certificado: {
+        id: 1,
+        unidade_id: 7,
+        cnpj: '11222333000181',
+        titular: 'ADVOCACIA-GERAL DA UNIAO',
+        emissor: 'AC SOLUTI',
+        valido_de: '2025-01-01T00:00:00+00:00',
+        valido_ate: '2027-01-01T00:00:00+00:00',
+        dias_restantes: 180,
+        vencido: false,
+        ativo: true,
+      },
     })
 
     // 1ª tentativa: backend pede step-up (AxiosError com a flag específica).
@@ -158,5 +167,50 @@ describe('CertificadoPage', () => {
     await waitFor(() => expect(verifyMfaMock).toHaveBeenCalledWith('123456'))
     // Após verificar, o upload é reenviado automaticamente.
     await waitFor(() => expect(enviarMock).toHaveBeenCalledTimes(2))
+  })
+
+  it('operador com certificado em dia não vê o botão de atualizar', async () => {
+    obterMock.mockResolvedValue({
+      podeAtualizar: false,
+      certificado: {
+        id: 1,
+        unidade_id: 7,
+        cnpj: '11222333000181',
+        titular: 'ADVOCACIA-GERAL DA UNIAO',
+        emissor: 'AC SOLUTI',
+        valido_de: '2025-01-01T00:00:00+00:00',
+        valido_ate: '2027-01-01T00:00:00+00:00',
+        dias_restantes: 180,
+        vencido: false,
+        ativo: true,
+      },
+    })
+
+    renderPage()
+
+    expect(await screen.findByText(/somente depois que ele vencer/i)).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /rotacionar|atualizar/i })).not.toBeInTheDocument()
+  })
+
+  it('certificado vencido com permissão oferece "Atualizar certificado"', async () => {
+    obterMock.mockResolvedValue({
+      podeAtualizar: true,
+      certificado: {
+        id: 1,
+        unidade_id: 7,
+        cnpj: '11222333000181',
+        titular: 'ADVOCACIA-GERAL DA UNIAO',
+        emissor: 'AC SOLUTI',
+        valido_de: '2020-01-01T00:00:00+00:00',
+        valido_ate: '2021-01-01T00:00:00+00:00',
+        dias_restantes: -100,
+        vencido: true,
+        ativo: true,
+      },
+    })
+
+    renderPage()
+
+    expect(await screen.findByRole('button', { name: /atualizar certificado/i })).toBeInTheDocument()
   })
 })

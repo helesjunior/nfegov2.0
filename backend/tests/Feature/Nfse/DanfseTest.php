@@ -144,7 +144,7 @@ class DanfseTest extends TestCase
         Nfse::factory()->create(['unidade_id' => $unidade->id, 'chave' => $chave, 'xml_path' => 'x/nota.xml']);
         $semXml = Nfse::factory()->create(['unidade_id' => $unidade->id, 'xml_path' => null]);
 
-        $this->actingAs($this->usuario($tenant, 'consulta'))
+        $this->actingAs(User::factory()->comTenant($tenant)->create())
             ->get("/api/nfses/{$chave}/danfse")->assertForbidden();
 
         $this->actingAs($this->usuario($tenant))

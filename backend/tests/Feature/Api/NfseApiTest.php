@@ -141,16 +141,18 @@ class NfseApiTest extends TestCase
         $this->actingAs($this->usuario($a))->getJson("/api/nfses/{$nfse->chave}")->assertNotFound();
     }
 
-    public function test_consulta_ve_mas_nao_recebe_url_do_xml(): void
+    public function test_consulta_recebe_url_do_xml(): void
     {
         $tenant = Tenant::factory()->create();
         $u = Unidade::factory()->create(['tenant_id' => $tenant->id]);
         $nfse = Nfse::factory()->create(['unidade_id' => $u->id, 'xml_path' => 'x/nota.xml']);
 
-        $this->actingAs($this->usuario($tenant, 'consulta'))
+        $url = $this->actingAs($this->usuario($tenant, 'consulta'))
             ->getJson("/api/nfses/{$nfse->chave}")
             ->assertOk()
-            ->assertJsonPath('data.xml_url', null);
+            ->json('data.xml_url');
+
+        $this->assertNotNull($url);
     }
 
     public function test_exportacao_agenda_job_com_os_filtros(): void
@@ -165,13 +167,14 @@ class NfseApiTest extends TestCase
         Queue::assertPushed(ExportNfseJob::class, fn ($job) => $job->formato === 'xlsx' && $job->filtros['papel'] === 'tomador');
     }
 
-    public function test_exportacao_exige_permissao(): void
+    public function test_consulta_tambem_exporta(): void
     {
+        Queue::fake();
         $tenant = Tenant::factory()->create();
 
         $this->actingAs($this->usuario($tenant, 'consulta'))
             ->postJson('/api/nfses/export', [])
-            ->assertForbidden();
+            ->assertStatus(202);
     }
 
     public function test_export_job_gera_csv(): void

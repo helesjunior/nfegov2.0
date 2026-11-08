@@ -46,6 +46,6 @@ class NfePolicy
 
     public function manifestar(User $user, Nfe $nfe): bool
     {
-        return $this->podeVer($user, $nfe, 'nfe.export');
+        return $this->podeVer($user, $nfe, 'nfe.manifestar');
     }
 }

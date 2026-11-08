@@ -17,6 +17,7 @@ use Illuminate\Support\Facades\Gate;
  *
  * - `GET  /api/unidades/{unidade}/certificado` — apenas METADADOS.
  * - `POST /api/unidades/{unidade}/certificado` — upload/rotação (step-up).
+ *   Admin envia a qualquer momento; operador só troca um certificado vencido.
  *
  * NENHUMA resposta inclui a senha ou o conteúdo do PFX.
  *
@@ -41,19 +42,23 @@ class CertificateController extends Controller
 
         $cert = $this->service->activeFor($unidade);
 
-        if (! $cert) {
-            return response()->json(['certificado' => null]);
-        }
-
-        return response()->json(['certificado' => $this->metadados($cert)]);
+        return response()->json([
+            'certificado' => $cert ? $this->metadados($cert) : null,
+            // A SPA mostra o botão de envio só para quem pode usá-lo (ex.: o
+            // operador só troca o certificado depois que ele vence).
+            'pode_atualizar' => Gate::allows('atualizarCertificado', $unidade),
+        ]);
     }
 
     public function store(StoreCertificateRequest $request, int $unidade): JsonResponse
     {
         $unidade = $this->resolverUnidade($unidade);
 
-        Gate::authorize('create', Certificate::class);
-        Gate::authorize('viewCertificate', $unidade);
+        if (Gate::denies('atualizarCertificado', $unidade)) {
+            abort(403, $request->user()->can('certificado.renovar')
+                ? 'Seu perfil só pode atualizar o certificado quando ele estiver vencido.'
+                : 'Você não tem permissão para alterar o certificado desta unidade.');
+        }
 
         $cert = $this->service->store(
             $unidade,

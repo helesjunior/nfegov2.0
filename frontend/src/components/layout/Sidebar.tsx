@@ -25,7 +25,7 @@ const ITENS: ItemMenu[] = [
   { para: '/', rotulo: 'Painel', icone: 'painel', exato: true },
   { para: '/nfes', rotulo: 'NF-e', icone: 'documento', permissoes: ['nfe.view'] },
   { para: '/nfses', rotulo: 'NFS-e', icone: 'documento', permissoes: ['nfe.view'] },
-  { para: '/unidades', rotulo: 'Unidades', icone: 'predio', permissoes: ['nfe.view'] },
+  { para: '/unidades', rotulo: 'Unidades', icone: 'predio', permissoes: ['unidade.view'] },
   { para: '/sync', rotulo: 'Sincronizações', icone: 'sincronizar', permissoes: ['nfe.view'] },
   { para: '/notificacoes', rotulo: 'Notificações', icone: 'sino' },
   { para: '/usuarios', rotulo: 'Usuários', icone: 'usuarios', permissoes: ['usuario.gerenciar'] },

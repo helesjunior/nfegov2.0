@@ -34,4 +34,21 @@ describe('Sidebar', () => {
     expect(screen.queryByRole('link', { name: 'Usuários' })).not.toBeInTheDocument()
     expect(screen.queryByRole('link', { name: 'Entidades' })).not.toBeInTheDocument()
   })
+
+  it('consulta (sem unidade.view) não vê Unidades, Usuários nem Entidades', () => {
+    renderizar({ permissoes: ['nfe.view', 'nfe.export', 'sync.executar'], versao: null })
+
+    expect(screen.getByRole('link', { name: 'Sincronizações' })).toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: 'Unidades' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: 'Usuários' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: 'Entidades' })).not.toBeInTheDocument()
+  })
+
+  it('operador vê Unidades, mas não Usuários nem Entidades', () => {
+    renderizar({ permissoes: ['nfe.view', 'unidade.view', 'certificado.renovar'], versao: null })
+
+    expect(screen.getByRole('link', { name: 'Unidades' })).toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: 'Usuários' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: 'Entidades' })).not.toBeInTheDocument()
+  })
 })

@@ -18,14 +18,19 @@ import { formatarCnpj, formatarData } from '../../lib/format'
  * A rotação (envio de novo PFX) é uma operação SENSÍVEL e exige step-up de
  * MFA: se o backend responder 403 com `mfa_step_up_required`, a tela pede o
  * código TOTP e reenvia o upload automaticamente após a verificação.
+ *
+ * O botão de envio só aparece para quem pode usá-lo (`pode_atualizar`, do
+ * backend): o admin sempre; o operador só quando o certificado venceu.
  */
 export function CertificadoPage({ unidade }: { unidade: Unidade }) {
   const queryClient = useQueryClient()
 
-  const { data: certificado, isLoading } = useQuery({
+  const { data, isLoading } = useQuery({
     queryKey: ['certificado', unidade.id],
     queryFn: () => certificadoApi.obter(unidade.id),
   })
+  const certificado = data?.certificado ?? null
+  const podeAtualizar = data?.podeAtualizar ?? false
 
   const [dialogoAberto, setDialogoAberto] = useState(false)
 
@@ -41,9 +46,13 @@ export function CertificadoPage({ unidade }: { unidade: Unidade }) {
       {!isLoading && !certificado && (
         <div className="card">
           <div className="alerta alerta--info">Nenhum certificado cadastrado para esta unidade.</div>
-          <button type="button" className="botao" onClick={() => setDialogoAberto(true)}>
-            Enviar certificado
-          </button>
+          {podeAtualizar ? (
+            <button type="button" className="botao" onClick={() => setDialogoAberto(true)}>
+              Enviar certificado
+            </button>
+          ) : (
+            <p className="shell__usuario">Peça ao administrador da entidade para enviar o certificado.</p>
+          )}
         </div>
       )}
 
@@ -84,9 +93,15 @@ export function CertificadoPage({ unidade }: { unidade: Unidade }) {
             </dd>
           </dl>
 
-          <button type="button" className="botao" onClick={() => setDialogoAberto(true)}>
-            Rotacionar certificado
-          </button>
+          {podeAtualizar ? (
+            <button type="button" className="botao" onClick={() => setDialogoAberto(true)}>
+              {certificado.vencido ? 'Atualizar certificado' : 'Rotacionar certificado'}
+            </button>
+          ) : (
+            <p className="shell__usuario">
+              Seu perfil pode atualizar o certificado somente depois que ele vencer.
+            </p>
+          )}
         </div>
       )}
 
@@ -210,7 +225,8 @@ function RotacionarCertificadoDialog({
           <form onSubmit={aoVerificar} noValidate>
             <div className="alerta alerta--info">
               Esta operação exige uma nova verificação de segurança. Informe o código do
-              autenticador para continuar.
+              autenticador para continuar. Se você ainda não ativou a verificação em duas
+              etapas, ative-a em Minha conta antes de enviar o certificado.
             </div>
 
             <div className="campo">

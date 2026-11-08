@@ -29,9 +29,10 @@ trait PertenceAoTenant
      */
     protected function mesmoTenant(User $user, $recurso): bool
     {
-        if ($user->tenant_id === null) {
-            // Usuários sem tenant (super-admin) podem alcançar qualquer dado;
-            // a checagem de papel é feita à parte na policy concreta.
+        if ($this->ehSuperAdmin($user)) {
+            // Só o super-admin alcança dados de qualquer entidade. Antes isso
+            // era decidido por `tenant_id` nulo, o que liberava qualquer
+            // usuário vinculado só pela tabela N:N (sem a coluna legada).
             return true;
         }
 

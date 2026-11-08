@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ehErroDeStepUp, mensagemDeErro, unidadesApi, type NovaUnidade, type Unidade } from '../../lib/api'
 import { formatarCnpj, rotularAmbiente } from '../../lib/format'
+import { usePermissao } from '../auth/session'
 import { useStepUp, type Rascunho } from '../auth/stepUp'
 
 /**
@@ -11,9 +12,13 @@ import { useStepUp, type Rascunho } from '../auth/stepUp'
  * A listagem é paginada (50 por página) e mostra o status do certificado de
  * cada unidade. Cada linha permite editar a unidade ou ativá-la/desativá-la.
  * A entidade (`tenant_id`) da unidade é fixa — nunca é editável aqui.
+ *
+ * Incluir, editar e ativar/desativar exigem `unidade.gerenciar` (admin): o
+ * operador só vê a lista e o certificado (que ele troca quando vencer).
  */
 export function UnidadesPage() {
   const queryClient = useQueryClient()
+  const podeGerenciar = usePermissao('unidade.gerenciar')
   const { consumirRascunho, foiRenovado } = useStepUp()
   const [pagina, setPagina] = useState(1)
   const [formAberto, setFormAberto] = useState(false)
@@ -25,6 +30,7 @@ export function UnidadesPage() {
   // acontece em efeito (não no initializer) por causa do StrictMode; aqui
   // sincronizamos com o singleton externo (falso positivo da regra).
   useEffect(() => {
+    if (!podeGerenciar) return
     const pendente = consumirRascunho('unidade')
     if (!pendente) return
 
@@ -36,7 +42,7 @@ export function UnidadesPage() {
         : null,
     )
     setFormAberto(true)
-  }, [consumirRascunho, queryClient])
+  }, [consumirRascunho, queryClient, podeGerenciar])
 
   const { data, isLoading, isError } = useQuery({
     queryKey: ['unidades', pagina],
@@ -53,20 +59,22 @@ export function UnidadesPage() {
 
       <div className="pagina-topo">
         <h1>Unidades</h1>
-        <button
-          type="button"
-          className="botao"
-          onClick={() => {
-            setEditando(null)
-            setRascunho(null)
-            setFormAberto((v) => !v)
-          }}
-        >
-          {formAberto && !editando ? 'Fechar' : 'Nova unidade'}
-        </button>
+        {podeGerenciar && (
+          <button
+            type="button"
+            className="botao"
+            onClick={() => {
+              setEditando(null)
+              setRascunho(null)
+              setFormAberto((v) => !v)
+            }}
+          >
+            {formAberto && !editando ? 'Fechar' : 'Nova unidade'}
+          </button>
+        )}
       </div>
 
-      {formAberto && (
+      {podeGerenciar && formAberto && (
         <NovaUnidadeForm
           key={editando?.id ?? 'novo'}
           unidadeEmEdicao={editando ?? undefined}
@@ -123,17 +131,21 @@ export function UnidadesPage() {
                       }}
                     >
                       <Link to={`/unidades/${u.id}/certificado`}>Certificado</Link>
-                      <button
-                        type="button"
-                        className="botao botao--secundario"
-                        onClick={() => {
-                          setEditando(u)
-                          setFormAberto(true)
-                        }}
-                      >
-                        Editar
-                      </button>
-                      <BotaoAtivo unidade={u} />
+                      {podeGerenciar && (
+                        <>
+                          <button
+                            type="button"
+                            className="botao botao--secundario"
+                            onClick={() => {
+                              setEditando(u)
+                              setFormAberto(true)
+                            }}
+                          >
+                            Editar
+                          </button>
+                          <BotaoAtivo unidade={u} />
+                        </>
+                      )}
                     </div>
                   </td>
                 </tr>

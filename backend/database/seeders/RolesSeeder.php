@@ -8,62 +8,90 @@ use Spatie\Permission\Models\Role;
 use Spatie\Permission\PermissionRegistrar;
 
 /**
- * Cria papéis e permissões do sistema.
+ * Cria papéis e permissões do sistema (idempotente: pode rodar de novo).
  *
  * Papéis:
- * - super-admin   : administra a plataforma (multi-tenant), tudo liberado.
- * - admin-tenant  : administra a própria entidade (unidades, certificados, usuários).
- * - operador      : opera o dia a dia (consulta/exporta NF-e, dispara sync).
- * - consulta      : somente leitura de NF-e.
+ * - super-admin  : tudo, em todas as entidades (inclui o CRUD de Entidades).
+ * - admin-tenant : tudo nas entidades a que está vinculado, menos Entidades
+ *                  (unidades, certificados, usuários, NF-e e NFS-e).
+ * - operador     : tudo de NF-e/NFS-e e Sincronizações; vê Unidades, mas não
+ *                  inclui/edita/desativa; só troca o certificado VENCIDO.
+ *                  Não acessa Usuários nem Entidades.
+ * - consulta     : tudo de NF-e/NFS-e (XML, PDF, exportações, busca), exceto
+ *                  registrar/rejeitar a manifestação do tomador da NFS-e.
+ *                  Não acessa Unidades, Usuários nem Entidades.
+ *
+ * Permissões:
+ * - nfe.view              : consultar NF-e/NFS-e, painel e sincronizações.
+ * - nfe.export            : baixar XML, gerar DANFE/DANFSe e exportar.
+ * - nfe.manifestar        : registrar/rejeitar a manifestação do tomador (NFS-e).
+ * - sync.executar         : buscar nota manualmente (por chave/NSU).
+ * - unidade.view          : acessar a tela de Unidades e ver o certificado.
+ * - unidade.gerenciar     : incluir, editar e ativar/desativar unidades.
+ * - certificado.gerenciar : enviar/trocar o certificado a qualquer momento.
+ * - certificado.renovar   : trocar o certificado só quando ele está vencido.
+ * - usuario.gerenciar     : CRUD de usuários das entidades vinculadas.
+ * - auditoria.view        : auditoria global (plataforma).
  */
 class RolesSeeder extends Seeder
 {
+    /** @var list<string> */
+    public const PERMISSOES = [
+        'nfe.view',
+        'nfe.export',
+        'nfe.manifestar',
+        'sync.executar',
+        'unidade.view',
+        'unidade.gerenciar',
+        'certificado.gerenciar',
+        'certificado.renovar',
+        'usuario.gerenciar',
+        'auditoria.view',
+    ];
+
+    /** @var array<string, list<string>> */
+    public const PAPEIS = [
+        'admin-tenant' => [
+            'nfe.view',
+            'nfe.export',
+            'nfe.manifestar',
+            'sync.executar',
+            'unidade.view',
+            'unidade.gerenciar',
+            'certificado.gerenciar',
+            'certificado.renovar',
+            'usuario.gerenciar',
+        ],
+        'operador' => [
+            'nfe.view',
+            'nfe.export',
+            'nfe.manifestar',
+            'sync.executar',
+            'unidade.view',
+            'certificado.renovar',
+        ],
+        'consulta' => [
+            'nfe.view',
+            'nfe.export',
+            'sync.executar',
+        ],
+    ];
+
     public function run(): void
     {
         app(PermissionRegistrar::class)->forgetCachedPermissions();
 
-        $permissoes = [
-            'nfe.view',
-            'nfe.export',
-            'certificado.gerenciar',
-            'unidade.gerenciar',
-            'usuario.gerenciar',
-            'sync.executar',
-            'auditoria.view',
-        ];
-
-        foreach ($permissoes as $nome) {
+        foreach (self::PERMISSOES as $nome) {
             Permission::findOrCreate($nome, 'web');
         }
 
-        $superAdmin = Role::findOrCreate('super-admin', 'web');
-        $adminTenant = Role::findOrCreate('admin-tenant', 'web');
-        $operador = Role::findOrCreate('operador', 'web');
-        $consulta = Role::findOrCreate('consulta', 'web');
-
         // super-admin: tudo.
-        $superAdmin->syncPermissions($permissoes);
+        Role::findOrCreate('super-admin', 'web')->syncPermissions(self::PERMISSOES);
 
-        // admin-tenant: gestão da própria entidade, sem auditoria global.
-        $adminTenant->syncPermissions([
-            'nfe.view',
-            'nfe.export',
-            'certificado.gerenciar',
-            'unidade.gerenciar',
-            'usuario.gerenciar',
-            'sync.executar',
-        ]);
+        foreach (self::PAPEIS as $papel => $permissoes) {
+            Role::findOrCreate($papel, 'web')->syncPermissions($permissoes);
+        }
 
-        // operador: operação diária.
-        $operador->syncPermissions([
-            'nfe.view',
-            'nfe.export',
-            'sync.executar',
-        ]);
-
-        // consulta: somente leitura.
-        $consulta->syncPermissions([
-            'nfe.view',
-        ]);
+        app(PermissionRegistrar::class)->forgetCachedPermissions();
     }
 }

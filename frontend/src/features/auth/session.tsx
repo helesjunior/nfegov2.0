@@ -54,3 +54,20 @@ export function useSessao(): SessionContextValue {
 
   return ctx
 }
+/**
+ * O usuário tem a permissão? Super-admin tem todas. Espelha o RBAC do backend
+ * para mostrar/ocultar menus e botões; a autorização efetiva é do servidor.
+ */
+export function temPermissao(
+  usuario: Pick<Usuario, 'papeis' | 'permissoes'> | null | undefined,
+  permissao: string,
+): boolean {
+  if (!usuario) return false
+  return usuario.papeis.includes('super-admin') || usuario.permissoes.includes(permissao)
+}
+
+/** Atalho de `temPermissao` para o usuário da sessão. */
+export function usePermissao(permissao: string): boolean {
+  const { usuario } = useSessao()
+  return temPermissao(usuario, permissao)
+}

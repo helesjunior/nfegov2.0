@@ -42,14 +42,31 @@ class RolesTest extends TestCase
         $this->assertTrue($u->can('certificado.gerenciar'));
     }
 
-    public function test_consulta_somente_le(): void
+    public function test_consulta_opera_as_notas_sem_manifestar_nem_gerir(): void
     {
         $u = User::factory()->create();
         $u->assignRole('consulta');
 
         $this->assertTrue($u->can('nfe.view'));
-        $this->assertFalse($u->can('nfe.export'));
+        $this->assertTrue($u->can('nfe.export'));
+        $this->assertTrue($u->can('sync.executar'));
+        $this->assertFalse($u->can('nfe.manifestar'));
+        $this->assertFalse($u->can('unidade.view'));
         $this->assertFalse($u->can('unidade.gerenciar'));
+        $this->assertFalse($u->can('certificado.renovar'));
+        $this->assertFalse($u->can('usuario.gerenciar'));
+    }
+
+    public function test_operador_ve_unidades_e_so_renova_certificado(): void
+    {
+        $u = User::factory()->create();
+        $u->assignRole('operador');
+
+        $this->assertTrue($u->can('unidade.view'));
+        $this->assertTrue($u->can('certificado.renovar'));
+        $this->assertTrue($u->can('nfe.manifestar'));
+        $this->assertFalse($u->can('unidade.gerenciar'));
+        $this->assertFalse($u->can('usuario.gerenciar'));
     }
 
     public function test_super_admin_tem_todas_as_permissoes(): void
