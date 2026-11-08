@@ -147,7 +147,7 @@ class TenantIsolationTest extends TestCase
         $this->assertFalse($u->can('create', \App\Models\Unidade::class));
     }
 
-    public function test_operador_nao_gerencia_certificado(): void
+    public function test_operador_ve_mas_nao_gerencia_certificado_em_dia(): void
     {
         $a = Tenant::factory()->create();
         $u = $this->usuarioDe($a, 'operador');
@@ -160,7 +160,9 @@ class TenantIsolationTest extends TestCase
 
         $this->assertFalse($u->can('create', \App\Models\Certificate::class));
         $this->assertFalse($u->can('rotate', $cert));
-        $this->assertFalse($u->can('viewCertificate', $unidade));
+        // Operador vê os metadados, mas só troca o certificado quando vencer.
+        $this->assertTrue($u->can('viewCertificate', $unidade));
+        $this->assertFalse($u->can('atualizarCertificado', $unidade));
     }
 
     public function test_admin_tenant_gerencia_certificado_do_proprio_tenant(): void

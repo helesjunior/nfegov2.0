@@ -203,8 +203,12 @@ class BuscaPorChaveEZipTest extends TestCase
         $notificacao = $user->notifications()->first();
         $this->assertSame(1, $notificacao->data['total']);
 
+        // Limpa a anterior: as duas notificações podem ter o mesmo created_at,
+        // e o id é UUID, então nenhuma ordenação garante pegar a nova.
+        $user->notifications()->delete();
+
         (new ExportNfseXmlJob($unidade->tenant_id, $user->id, []))->handle(app(NfseQuery::class));
-        $notificacao = $user->notifications()->latest()->first();
+        $notificacao = $user->notifications()->first();
         $this->assertSame(2, $notificacao->data['total']);
         $this->assertSame('XMLs de NFS-e', $notificacao->data['documento']);
 
