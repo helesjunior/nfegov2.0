@@ -546,6 +546,7 @@ Regra de versão (SemVer):
 
 | Versão | O que entrou |
 |---|---|
+| 2.8.0 | Ordenação nas listas de NF-e e NFS-e (cabeçalhos clicáveis, crescente/decrescente, no servidor) |
 | 2.7.1 | NF-e de hora em hora, todos os dias, por padrão |
 | 2.7.0 | Ritmo da NF-e: regra de 1 h da SEFAZ por unidade, continuação automática e intervalo configurável |
 | 2.6.0 | NFS-e no painel (indicadores e gráficos) e documentação atualizada |
@@ -566,13 +567,13 @@ same-origin) e escopo de tenant por usuário autenticado.
 | `GET` | `/api/me` | Usuário atual, papéis/permissões, tenant ativo e entidades disponíveis |
 | `POST` | `/api/sessao/tenant` | Define o tenant ativo da sessão (seletor de entidade) |
 | `POST` | `/api/mfa/setup` · `/confirm` · `/verify` | Configuração e step-up do TOTP |
-| `GET` | `/api/nfes` | Lista (filtros: período, unidade, emitente, valor, chave, busca) |
+| `GET` | `/api/nfes` | Lista (filtros: período, unidade, emitente, valor, chave, busca). Ordenação: `ordem` = `emissao` (padrão), `emitente`, `numero` ou `valor`; `direcao` = `asc` ou `desc` (padrão) |
 | `GET` | `/api/nfes/{chave}` | Detalhe com itens e link assinado do XML |
 | `GET` | `/api/nfes/{chave}/xml` | XML (URL assinada) |
 | `GET` | `/api/nfes/{chave}/danfe` | DANFE em PDF |
 | `POST` | `/api/nfes/export` · `/export-xml` | Exportação assíncrona (202) |
 | `POST` | `/api/nfes/recuperar` | Busca manual de NF-e por chave ou NSU (202) |
-| `GET` | `/api/nfses` | Lista de NFS-e (filtros: período por emissão ou competência, unidade, papel, situação, prestador, valor, chave, busca) |
+| `GET` | `/api/nfses` | Lista de NFS-e (filtros: período por emissão ou competência, unidade, papel, situação, prestador, valor, chave, busca). Ordenação: `ordem` = `emissao`, `competencia`, `prestador`, `tomador`, `numero`, `municipio` ou `valor`; `direcao` = `asc` ou `desc` (padrão). Sem `ordem`, segue o campo do período |
 | `GET` | `/api/nfses/{chave}` | Detalhe com eventos, manifestação e link assinado do XML (`?unidade_id=`) |
 | `GET` | `/api/nfses/{chave}/xml` | XML (URL assinada) |
 | `GET` | `/api/nfses/{chave}/danfse` | DANFSe em PDF (gerado localmente, NT 008) |

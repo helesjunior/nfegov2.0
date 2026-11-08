@@ -214,4 +214,50 @@ describe('NfeListPage', () => {
       }),
     )
   })
+
+  it('abre ordenada pela emissão mais recente', async () => {
+    listarMock.mockResolvedValue(paginaMock)
+
+    renderPage()
+    await screen.findByText(/FORNECEDOR EXEMPLO LTDA/i)
+
+    expect(listarMock).toHaveBeenCalledWith(
+      expect.objectContaining({ ordem: 'emissao', direcao: 'desc', page: 1 }),
+    )
+    expect(screen.getByRole('columnheader', { name: /emissão/i })).toHaveAttribute('aria-sort', 'descending')
+  })
+
+  it('ordena pela coluna clicada, inverte no segundo clique e mantém os filtros', async () => {
+    const user = userEvent.setup()
+    listarMock.mockResolvedValue(paginaMock)
+
+    renderPage()
+    await screen.findByText(/FORNECEDOR EXEMPLO LTDA/i)
+
+    await user.type(screen.getByLabelText(/^busca$/i), 'exemplo')
+    await user.click(screen.getByRole('button', { name: /filtrar/i }))
+
+    await user.click(screen.getByRole('button', { name: /^emitente$/i }))
+    await waitFor(() =>
+      expect(listarMock).toHaveBeenLastCalledWith(
+        expect.objectContaining({ q: 'exemplo', ordem: 'emitente', direcao: 'asc', page: 1 }),
+      ),
+    )
+    expect(screen.getByRole('columnheader', { name: /emitente/i })).toHaveAttribute('aria-sort', 'ascending')
+    expect(screen.getByRole('columnheader', { name: /emissão/i })).toHaveAttribute('aria-sort', 'none')
+
+    await user.click(screen.getByRole('button', { name: /^emitente$/i }))
+    await waitFor(() =>
+      expect(listarMock).toHaveBeenLastCalledWith(
+        expect.objectContaining({ q: 'exemplo', ordem: 'emitente', direcao: 'desc' }),
+      ),
+    )
+
+    await user.click(screen.getByRole('button', { name: /^valor$/i }))
+    await waitFor(() =>
+      expect(listarMock).toHaveBeenLastCalledWith(
+        expect.objectContaining({ ordem: 'valor', direcao: 'desc' }),
+      ),
+    )
+  })
 })

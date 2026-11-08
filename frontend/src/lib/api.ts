@@ -506,7 +506,14 @@ export interface NfeItem {
   valor_total: string | null
 }
 
+export type DirecaoOrdem = 'asc' | 'desc'
+
+/** Chaves de `?ordem=` aceitas por `GET /api/nfes` (lista branca do backend). */
+export type OrdemNfe = 'emissao' | 'emitente' | 'numero' | 'valor'
+
 export interface FiltrosNfe {
+  ordem?: OrdemNfe
+  direcao?: DirecaoOrdem
   de?: string
   ate?: string
   unidade_id?: number
@@ -629,7 +636,19 @@ export interface PedidoManifestacaoNfse {
   descricao?: string
 }
 
+/** Chaves de `?ordem=` aceitas por `GET /api/nfses` (lista branca do backend). */
+export type OrdemNfse =
+  | 'emissao'
+  | 'competencia'
+  | 'prestador'
+  | 'tomador'
+  | 'numero'
+  | 'municipio'
+  | 'valor'
+
 export interface FiltrosNfse {
+  ordem?: OrdemNfse
+  direcao?: DirecaoOrdem
   de?: string
   ate?: string
   data?: 'emissao' | 'competencia'

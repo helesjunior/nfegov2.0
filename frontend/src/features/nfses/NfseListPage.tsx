@@ -6,6 +6,7 @@ import {
   unidadesApi,
   mensagemDeErro,
   type FiltrosNfse,
+  type OrdemNfse,
   type PapelNfse,
   type SituacaoNfse,
 } from '../../lib/api'
@@ -18,6 +19,19 @@ import {
 } from '../../lib/format'
 import { ROTULO_PAPEL, ROTULO_SITUACAO, classeSituacao } from './rotulos'
 import { NfseBuscaForm } from './NfseBuscaForm'
+import { ColunaOrdenavel } from '../../components/ui/ColunaOrdenavel'
+import { proximaOrdem, type Ordem } from '../../lib/ordem'
+
+/** Sentido inicial de cada coluna ao ser escolhida. */
+const DIRECAO_INICIAL = {
+  emissao: 'desc',
+  competencia: 'desc',
+  prestador: 'asc',
+  tomador: 'asc',
+  numero: 'desc',
+  municipio: 'asc',
+  valor: 'desc',
+} as const
 
 /**
  * Lista de NFS-e recebidas pelo Ambiente de Dados Nacional.
@@ -25,12 +39,17 @@ import { NfseBuscaForm } from './NfseBuscaForm'
  * A fila do ADN traz as notas recebidas, emitidas e intermediadas pela
  * unidade; a tela abre em "Recebidas". O período pode valer para a emissão
  * ou para a competência. A exportação usa os filtros aplicados.
+ *
+ * Os cabeçalhos ordenam a lista no servidor (vale para todas as páginas).
+ * Enquanto ninguém escolhe uma coluna, a lista segue o "Período por":
+ * emissão ou competência, da mais recente para a mais antiga.
  */
 export function NfseListPage() {
   const navigate = useNavigate()
 
   const [filtros, setFiltros] = useState<FiltrosNfse>({ papel: 'tomador' })
   const [pagina, setPagina] = useState(1)
+  const [ordemEscolhida, setOrdemEscolhida] = useState<Ordem<OrdemNfse> | null>(null)
   const [aviso, setAviso] = useState<string | null>(null)
 
   const [de, setDe] = useState('')
@@ -41,9 +60,15 @@ export function NfseListPage() {
   const [situacao, setSituacao] = useState<SituacaoNfse | ''>('')
   const [q, setQ] = useState('')
 
+  const ordem: Ordem<OrdemNfse> = ordemEscolhida ?? {
+    campo: filtros.data === 'competencia' ? 'competencia' : 'emissao',
+    direcao: 'desc',
+  }
+
   const { data, isLoading, isError } = useQuery({
-    queryKey: ['nfses', filtros, pagina],
-    queryFn: () => nfseApi.listar({ ...filtros, page: pagina }),
+    queryKey: ['nfses', filtros, ordem, pagina],
+    queryFn: () =>
+      nfseApi.listar({ ...filtros, ordem: ordem.campo, direcao: ordem.direcao, page: pagina }),
   })
 
   const { data: unidades } = useQuery({
@@ -74,6 +99,11 @@ export function NfseListPage() {
       situacao: situacao || undefined,
       q: q || undefined,
     })
+    setPagina(1)
+  }
+
+  function ordenar(campo: OrdemNfse) {
+    setOrdemEscolhida(proximaOrdem(ordem, campo, DIRECAO_INICIAL[campo]))
     setPagina(1)
   }
 
@@ -214,13 +244,13 @@ export function NfseListPage() {
           <table className="tabela">
             <thead>
               <tr>
-                <th>Emissão</th>
-                <th>Competência</th>
+                <ColunaOrdenavel campo="emissao" rotulo="Emissão" ordem={ordem} onOrdenar={ordenar} />
+                <ColunaOrdenavel campo="competencia" rotulo="Competência" ordem={ordem} onOrdenar={ordenar} />
                 <th>Unidade</th>
-                <th>Prestador</th>
-                <th>Número</th>
-                <th>Município</th>
-                <th>Valor</th>
+                <ColunaOrdenavel campo="prestador" rotulo="Prestador" ordem={ordem} onOrdenar={ordenar} />
+                <ColunaOrdenavel campo="numero" rotulo="Número" ordem={ordem} onOrdenar={ordenar} />
+                <ColunaOrdenavel campo="municipio" rotulo="Município" ordem={ordem} onOrdenar={ordenar} />
+                <ColunaOrdenavel campo="valor" rotulo="Valor" ordem={ordem} onOrdenar={ordenar} />
                 <th>Situação</th>
               </tr>
             </thead>

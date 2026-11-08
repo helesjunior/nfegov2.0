@@ -28,6 +28,7 @@ no [`README.md`](../README.md) da raiz.
 | Diagnóstico e correção da recuperação (cStat 137) | [`specs/2026-11-06-diagnostico-recuperacao-nfe-137.md`](superpowers/specs/2026-11-06-diagnostico-recuperacao-nfe-137.md) | [`plans/2026-11-06-correcao-recuperacao-nfe-137.md`](superpowers/plans/2026-11-06-correcao-recuperacao-nfe-137.md) |
 | Retentativa automática da recuperação manual | [`specs/2026-11-07-recuperacao-retentativa-automatica-design.md`](superpowers/specs/2026-11-07-recuperacao-retentativa-automatica-design.md) | [`plans/2026-11-07-recuperacao-retentativa-automatica.md`](superpowers/plans/2026-11-07-recuperacao-retentativa-automatica.md) |
 | Ritmo da sincronização de NF-e (regra de 1 h, continuação, intervalo) | [`specs/2026-11-07-ritmo-sync-nfe-design.md`](superpowers/specs/2026-11-07-ritmo-sync-nfe-design.md) | — |
+| Ordenação nas listas de NF-e e NFS-e | [`specs/2026-11-08-ordenacao-listas-design.md`](superpowers/specs/2026-11-08-ordenacao-listas-design.md) | — |
 | Versionamento | [`specs/2026-11-07-versionamento-design.md`](superpowers/specs/2026-11-07-versionamento-design.md) | — |
 
 ## Capturas de tela

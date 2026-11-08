@@ -3,6 +3,7 @@
 namespace App\Domain\Nfse;
 
 use App\Models\Nfse;
+use App\Support\Ordenacao;
 use Illuminate\Database\Eloquent\Builder;
 
 /**
@@ -11,6 +12,19 @@ use Illuminate\Database\Eloquent\Builder;
  */
 class NfseQuery
 {
+    /**
+     * Ordenações aceitas em `?ordem=` (lista branca): chave => [coluna, tipo].
+     */
+    public const ORDENACOES = [
+        'emissao' => ['data_emissao', Ordenacao::NATURAL],
+        'competencia' => ['competencia', Ordenacao::NATURAL],
+        'prestador' => ['prestador_nome', Ordenacao::TEXTO],
+        'tomador' => ['tomador_nome', Ordenacao::TEXTO],
+        'numero' => ['numero', Ordenacao::NUMERO],
+        'municipio' => ['municipio_emissor_nome', Ordenacao::TEXTO],
+        'valor' => ['valor_servico', Ordenacao::NATURAL],
+    ];
+
     /**
      * @param  array<string, mixed>  $filtros
      */
@@ -40,13 +54,16 @@ class NfseQuery
     }
 
     /**
-     * Campo de ordenação, coerente com o filtro de data escolhido.
+     * Ordena a listagem. Sem `ordem`, segue o filtro de data escolhido
+     * (emissão ou competência), mais recente primeiro.
      *
      * @param  array<string, mixed>  $filtros
      */
-    public static function campoData(array $filtros): string
+    public function ordenar(Builder $q, array $filtros): Builder
     {
-        return ($filtros['data'] ?? 'emissao') === 'competencia' ? 'competencia' : 'data_emissao';
+        $padrao = ($filtros['data'] ?? 'emissao') === 'competencia' ? 'competencia' : 'emissao';
+
+        return Ordenacao::aplicar($q, self::ORDENACOES, $filtros['ordem'] ?? $padrao, $filtros['direcao'] ?? 'desc');
     }
 
     /**

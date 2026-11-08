@@ -202,4 +202,49 @@ class NfseApiTest extends TestCase
         $this->assertCount(1, $resp->json('data'));
         $this->assertSame('nfse', $resp->json('data.0.tipo'));
     }
+
+    public function test_sem_ordem_segue_o_campo_do_periodo(): void
+    {
+        $tenant = Tenant::factory()->create();
+        $unidade = Unidade::factory()->create(['tenant_id' => $tenant->id]);
+        $base = ['tenant_id' => $tenant->id, 'unidade_id' => $unidade->id];
+
+        Nfse::factory()->create($base + ['numero' => '1', 'data_emissao' => '2026-10-20 10:00:00', 'competencia' => '2026-01-01']);
+        Nfse::factory()->create($base + ['numero' => '2', 'data_emissao' => '2026-09-20 10:00:00', 'competencia' => '2026-08-01']);
+
+        $usuario = $this->usuario($tenant);
+
+        $resp = $this->actingAs($usuario)->getJson('/api/nfses');
+        $this->assertSame(['1', '2'], array_column($resp->json('data'), 'numero'));
+
+        $resp = $this->actingAs($usuario)->getJson('/api/nfses?data=competencia&de=2025-01-01');
+        $this->assertSame(['2', '1'], array_column($resp->json('data'), 'numero'));
+    }
+
+    public function test_ordena_por_prestador_competencia_e_valor(): void
+    {
+        $tenant = Tenant::factory()->create();
+        $unidade = Unidade::factory()->create(['tenant_id' => $tenant->id]);
+        $base = ['tenant_id' => $tenant->id, 'unidade_id' => $unidade->id];
+
+        Nfse::factory()->create($base + ['numero' => '1', 'prestador_nome' => 'Serralheria', 'competencia' => '2026-03-01', 'valor_servico' => '50.00']);
+        Nfse::factory()->create($base + ['numero' => '2', 'prestador_nome' => 'Ábaco Serviços', 'competencia' => '2026-01-01', 'valor_servico' => '700.00']);
+        Nfse::factory()->create($base + ['numero' => '3', 'prestador_nome' => 'clínica', 'competencia' => '2026-02-01', 'valor_servico' => '120.00']);
+
+        $usuario = $this->usuario($tenant);
+        $numeros = fn (string $qs) => array_column($this->actingAs($usuario)->getJson('/api/nfses?'.$qs)->json('data'), 'numero');
+
+        $this->assertSame(['2', '3', '1'], $numeros('ordem=prestador&direcao=asc'));
+        $this->assertSame(['1', '3', '2'], $numeros('ordem=prestador&direcao=desc'));
+        $this->assertSame(['2', '3', '1'], $numeros('ordem=competencia&direcao=asc'));
+        $this->assertSame(['2', '3', '1'], $numeros('ordem=valor&direcao=desc'));
+    }
+
+    public function test_ordem_fora_da_lista_branca_e_recusada(): void
+    {
+        $tenant = Tenant::factory()->create();
+
+        $this->actingAs($this->usuario($tenant))->getJson('/api/nfses?ordem=id;drop')
+            ->assertStatus(422)->assertJsonValidationErrors('ordem');
+    }
 }

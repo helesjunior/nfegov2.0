@@ -237,4 +237,91 @@ class NfeApiTest extends TestCase
     {
         return (string) fake()->unique()->numerify(str_repeat('#', 44));
     }
+
+    public function test_ordena_por_emissao_mais_recente_por_padrao_com_vazios_no_fim(): void
+    {
+        $tenant = Tenant::factory()->create();
+        $unidade = Unidade::factory()->create(['tenant_id' => $tenant->id]);
+        $base = ['tenant_id' => $tenant->id, 'unidade_id' => $unidade->id];
+
+        Nfe::factory()->create($base + ['numero' => 'A', 'data_emissao' => '2026-09-01 10:00:00']);
+        Nfe::factory()->create($base + ['numero' => 'B', 'data_emissao' => null]);
+        Nfe::factory()->create($base + ['numero' => 'C', 'data_emissao' => '2026-10-01 10:00:00']);
+
+        $usuario = $this->usuarioDoTenant($tenant);
+
+        $resp = $this->actingAs($usuario)->getJson('/api/nfes');
+        $this->assertSame(['C', 'A', 'B'], array_column($resp->json('data'), 'numero'));
+
+        $resp = $this->actingAs($usuario)->getJson('/api/nfes?ordem=emissao&direcao=asc');
+        $this->assertSame(['A', 'C', 'B'], array_column($resp->json('data'), 'numero'));
+    }
+
+    public function test_ordena_por_emitente_em_ordem_alfabetica_sem_diferenciar_acento_e_caixa(): void
+    {
+        $tenant = Tenant::factory()->create();
+        $unidade = Unidade::factory()->create(['tenant_id' => $tenant->id]);
+        $base = ['tenant_id' => $tenant->id, 'unidade_id' => $unidade->id];
+
+        foreach (['Zeta Ltda', 'Água Pura', 'beta sa', 'Ômega'] as $nome) {
+            Nfe::factory()->create($base + ['emitente_nome' => $nome]);
+        }
+
+        $usuario = $this->usuarioDoTenant($tenant);
+
+        $resp = $this->actingAs($usuario)->getJson('/api/nfes?ordem=emitente&direcao=asc');
+        $this->assertSame(['Água Pura', 'beta sa', 'Ômega', 'Zeta Ltda'], array_column($resp->json('data'), 'emitente_nome'));
+
+        $resp = $this->actingAs($usuario)->getJson('/api/nfes?ordem=emitente&direcao=desc');
+        $this->assertSame(['Zeta Ltda', 'Ômega', 'beta sa', 'Água Pura'], array_column($resp->json('data'), 'emitente_nome'));
+    }
+
+    public function test_ordena_por_valor_e_por_numero_como_numero(): void
+    {
+        $tenant = Tenant::factory()->create();
+        $unidade = Unidade::factory()->create(['tenant_id' => $tenant->id]);
+        $base = ['tenant_id' => $tenant->id, 'unidade_id' => $unidade->id];
+
+        Nfe::factory()->create($base + ['numero' => '9', 'valor_total' => '1500.00']);
+        Nfe::factory()->create($base + ['numero' => '10', 'valor_total' => '20.50']);
+        Nfe::factory()->create($base + ['numero' => '100', 'valor_total' => '300.00']);
+
+        $usuario = $this->usuarioDoTenant($tenant);
+
+        $resp = $this->actingAs($usuario)->getJson('/api/nfes?ordem=valor&direcao=desc');
+        $this->assertSame(['9', '100', '10'], array_column($resp->json('data'), 'numero'));
+
+        $resp = $this->actingAs($usuario)->getJson('/api/nfes?ordem=numero&direcao=asc');
+        $this->assertSame(['9', '10', '100'], array_column($resp->json('data'), 'numero'));
+    }
+
+    public function test_ordenacao_mantem_filtros_e_paginacao(): void
+    {
+        $tenant = Tenant::factory()->create();
+        $unidade = Unidade::factory()->create(['tenant_id' => $tenant->id]);
+        $base = ['tenant_id' => $tenant->id, 'unidade_id' => $unidade->id];
+
+        foreach ([100, 200, 300, 400] as $valor) {
+            Nfe::factory()->create($base + ['valor_total' => $valor, 'data_emissao' => '2026-10-10 10:00:00']);
+        }
+        Nfe::factory()->create($base + ['valor_total' => 999, 'data_emissao' => '2026-08-10 10:00:00']);
+
+        $resp = $this->actingAs($this->usuarioDoTenant($tenant))
+            ->getJson('/api/nfes?de=2026-10-01&ordem=valor&direcao=asc&per_page=2&page=2');
+
+        $resp->assertOk();
+        $this->assertSame(4, $resp->json('meta.total'));
+        $this->assertSame(['300.00', '400.00'], array_column($resp->json('data'), 'valor_total'));
+    }
+
+    public function test_ordem_fora_da_lista_branca_e_recusada(): void
+    {
+        $tenant = Tenant::factory()->create();
+        $usuario = $this->usuarioDoTenant($tenant);
+
+        $this->actingAs($usuario)->getJson('/api/nfes?ordem=xml_path')
+            ->assertStatus(422)->assertJsonValidationErrors('ordem');
+        $this->actingAs($usuario)->getJson('/api/nfes?ordem=emissao&direcao=lado')
+            ->assertStatus(422)->assertJsonValidationErrors('direcao');
+    }
 }

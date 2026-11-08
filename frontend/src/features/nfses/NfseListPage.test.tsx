@@ -173,4 +173,59 @@ describe('NfseListPage', () => {
     expect(exportarXmlMock).toHaveBeenCalledWith({ papel: 'tomador' })
     expect(await screen.findByText('A exportação dos XMLs foi agendada.')).toBeInTheDocument()
   })
+
+  it('segue o "Período por" enquanto nenhuma coluna é escolhida', async () => {
+    const user = userEvent.setup()
+    renderPage()
+    await screen.findByText('SERRALHERIA EXEMPLO')
+
+    expect(listarMock).toHaveBeenCalledWith(
+      expect.objectContaining({ ordem: 'emissao', direcao: 'desc' }),
+    )
+
+    await user.selectOptions(screen.getByLabelText(/período por/i), 'competencia')
+    await user.type(screen.getByLabelText(/^de$/i), '2023-01-01')
+    await user.click(screen.getByRole('button', { name: /filtrar/i }))
+
+    await waitFor(() =>
+      expect(listarMock).toHaveBeenLastCalledWith(
+        expect.objectContaining({ data: 'competencia', ordem: 'competencia', direcao: 'desc' }),
+      ),
+    )
+    expect(screen.getByRole('columnheader', { name: /competência/i })).toHaveAttribute(
+      'aria-sort',
+      'descending',
+    )
+  })
+
+  it('ordena por prestador em ordem alfabética e inverte no segundo clique', async () => {
+    const user = userEvent.setup()
+    renderPage()
+    await screen.findByText('SERRALHERIA EXEMPLO')
+
+    await user.click(screen.getByRole('button', { name: /^prestador$/i }))
+    await waitFor(() =>
+      expect(listarMock).toHaveBeenLastCalledWith(
+        expect.objectContaining({ papel: 'tomador', ordem: 'prestador', direcao: 'asc', page: 1 }),
+      ),
+    )
+
+    await user.click(screen.getByRole('button', { name: /^prestador$/i }))
+    await waitFor(() =>
+      expect(listarMock).toHaveBeenLastCalledWith(
+        expect.objectContaining({ ordem: 'prestador', direcao: 'desc' }),
+      ),
+    )
+  })
+
+  it('não leva a ordenação para a exportação', async () => {
+    const user = userEvent.setup()
+    renderPage()
+    await screen.findByText('SERRALHERIA EXEMPLO')
+
+    await user.click(screen.getByRole('button', { name: /^valor$/i }))
+    await user.click(screen.getByRole('button', { name: /exportar csv/i }))
+
+    expect(exportarMock).toHaveBeenCalledWith({ papel: 'tomador' }, 'csv')
+  })
 })

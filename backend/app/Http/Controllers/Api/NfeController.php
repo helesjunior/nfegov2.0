@@ -44,9 +44,8 @@ class NfeController extends Controller
         $perPage = (int) ($filtros['per_page'] ?? 25);
 
         return NfeResource::collection(
-            $this->query->build($filtros)
+            $this->query->ordenar($this->query->build($filtros), $filtros)
                 ->with(NfeQuery::comUnidade())
-                ->latest('data_emissao')
                 ->paginate($perPage)
         );
     }

@@ -2,7 +2,10 @@
 
 namespace App\Http\Requests;
 
+use App\Domain\Nfe\NfeQuery;
+use App\Support\Ordenacao;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 /**
  * Filtros da listagem de NF-e (`GET /api/nfes`).
@@ -28,6 +31,8 @@ class IndexNfeRequest extends FormRequest
             'valor_max' => ['nullable', 'numeric'],
             'chave' => ['nullable', 'string', 'max:44'],
             'q' => ['nullable', 'string', 'max:120'],
+            'ordem' => ['nullable', 'string', Rule::in(array_keys(NfeQuery::ORDENACOES))],
+            'direcao' => ['nullable', 'string', Rule::in(Ordenacao::DIRECOES)],
             'formato' => ['nullable', 'string', 'in:csv,xlsx'],
             'per_page' => ['nullable', 'integer', 'min:1', 'max:100'],
             'page' => ['nullable', 'integer', 'min:1'],
