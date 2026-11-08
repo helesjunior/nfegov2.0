@@ -45,8 +45,8 @@ return [
     */
 
     'sync' => [
-        // Intervalo do agendamento, em horas (o Sistema roda a cada 3 horas).
-        'interval_hours' => (int) env('NFEGOV_SYNC_INTERVAL_HOURS', 3),
+        // Intervalo do agendamento da NF-e, em horas (padrão: de hora em hora).
+        'interval_hours' => (int) env('NFEGOV_SYNC_INTERVAL_HOURS', 1),
 
         // Teto de iterações do laço distDFe no primeiro "catch-up" (NSU zerado).
         'loop_limit_catchup' => (int) env('NFEGOV_SYNC_LOOP_LIMIT_CATCHUP', 150),
@@ -59,7 +59,7 @@ return [
 
         // Só de segunda a sexta. A SEFAZ autoriza e distribui NF-e todos os
         // dias; `false` também consulta no fim de semana.
-        'weekdays_only' => (bool) env('NFEGOV_SYNC_WEEKDAYS_ONLY', true),
+        'weekdays_only' => (bool) env('NFEGOV_SYNC_WEEKDAYS_ONLY', false),
     ],
 
     /*
