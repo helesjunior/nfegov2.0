@@ -30,6 +30,12 @@ vi.mock('../../lib/api', () => ({
       ?.mfa_step_up_required === true,
 }))
 
+// Permissões da sessão (por padrão, admin: pode gerenciar unidades).
+let permissoesSessao = ['unidade.view', 'unidade.gerenciar']
+vi.mock('../auth/session', () => ({
+  usePermissao: (p: string) => permissoesSessao.includes(p),
+}))
+
 vi.mock('react-router-dom', async () => {
   const actual = await vi.importActual<typeof import('react-router-dom')>('react-router-dom')
   return { ...actual, useNavigate: () => navigateMock }
@@ -61,6 +67,7 @@ function semearRascunho(rascunho: Parameters<ReturnType<typeof useStepUp>['desaf
 
 describe('UnidadesPage', () => {
   beforeEach(() => {
+    permissoesSessao = ['unidade.view', 'unidade.gerenciar']
     navigateMock.mockReset()
     listarMock.mockReset().mockResolvedValue({
       data: [
@@ -88,6 +95,16 @@ describe('UnidadesPage', () => {
 
     const { result } = renderHook(() => useStepUp())
     act(() => result.current.limparTudo())
+  })
+
+  it('sem unidade.gerenciar (operador) mostra só a lista e o link do certificado', async () => {
+    permissoesSessao = ['unidade.view']
+    renderizar()
+
+    expect(await screen.findByRole('link', { name: /certificado/i })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /nova unidade/i })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /editar/i })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /desativar|ativar/i })).not.toBeInTheDocument()
   })
 
   it('abre o formulário de edição com os dados da unidade', async () => {

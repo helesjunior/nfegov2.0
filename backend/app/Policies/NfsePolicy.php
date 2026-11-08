@@ -8,8 +8,9 @@ use App\Policies\Concerns\PertenceAoTenant;
 
 /**
  * Autorização para NFS-e. Usa as mesmas permissões da NF-e (`nfe.view` para
- * consultar, `nfe.export` para XML, DANFSe, exportação e manifestação): quem
- * opera as notas de produtos opera também as de serviço. NFS-e são imutáveis.
+ * consultar, `nfe.export` para XML, DANFSe e exportação, `nfe.manifestar` para
+ * a manifestação do tomador): quem opera as notas de produtos opera também as
+ * de serviço. NFS-e são imutáveis.
  */
 class NfsePolicy
 {
@@ -41,10 +42,11 @@ class NfsePolicy
     }
 
     /**
-     * Manifestação do tomador: ato fiscal, só para quem pode exportar a nota.
+     * Manifestação do tomador (registrar/rejeitar): ato fiscal com permissão
+     * própria, `nfe.manifestar`. O papel `consulta` não a tem.
      */
     public function manifestar(User $user, Nfse $nfse): bool
     {
-        return $this->podeVer($user, $nfse, 'nfe.export');
+        return $this->podeVer($user, $nfse, 'nfe.manifestar');
     }
 }

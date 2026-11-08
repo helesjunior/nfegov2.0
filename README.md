@@ -333,15 +333,20 @@ O acesso é **multitenant**: cada usuário só enxerga os dados das entidades à
 O vínculo vive na tabela **`tenant_user`** (N:N) e é a **fonte de verdade**; `users.tenant_id`
 é mantido apenas por compatibilidade. Os papéis são globais (spatie/laravel-permission):
 
-| Papel | Escopo |
-|---|---|
-| `super-admin` | Administra a plataforma: CRUD de **Entidades**, acesso a **todas** as entidades e de todos os usuários |
-| `admin-tenant` | Administra a própria entidade: unidades, certificados e usuários vinculados a ela |
-| `operador` | Operação do dia a dia (consulta/exporta NF-e e NFS-e, dispara sync e buscas) |
-| `consulta` | Somente leitura de NF-e e NFS-e |
+| Papel | Menus | Escopo |
+|---|---|---|
+| `super-admin` | Todos | Tudo em **todas** as entidades, inclusive cadastrar, editar e desativar **Entidades** |
+| `admin-tenant` | Todos, exceto Entidades | Tudo nas entidades vinculadas: unidades (incluir, editar, desativar), certificados e usuários |
+| `operador` | Todos, exceto Entidades e Usuários | NF-e e NFS-e completas; em Unidades só **vê** e **atualiza o certificado quando ele está vencido** |
+| `consulta` | Todos, exceto Entidades, Usuários e Unidades | NF-e e NFS-e completas (XML, DANFE/DANFSe, exportações, busca), **exceto** registrar/rejeitar a manifestação do tomador |
 
-A NFS-e **reaproveita as permissões da NF-e**: `nfe.view` consulta, `nfe.export` baixa XML,
-gera DANFSe, exporta e manifesta, e `sync.executar` dispara a busca manual.
+Permissões (`RolesSeeder`): `nfe.view` (consultar notas, painel, sincronizações), `nfe.export`
+(XML, DANFE/DANFSe, exportações), `nfe.manifestar` (manifestação do tomador da NFS-e),
+`sync.executar` (busca manual), `unidade.view` (tela de Unidades), `unidade.gerenciar`
+(incluir/editar/desativar unidade), `certificado.gerenciar` (enviar certificado a qualquer momento),
+`certificado.renovar` (enviar só quando o atual venceu), `usuario.gerenciar` e `auditoria.view`.
+A NFS-e reaproveita as permissões da NF-e. As regras valem na API (policies) e na SPA (menus,
+rotas e botões). Mudanças no seeder chegam a bancos existentes por migration (`php artisan migrate`).
 
 > O papel `admin-demo`, criado pelo seed de demonstração, existe **apenas** para inspeção local
 > da interface (sem exigência de MFA) e **nunca** deve ser usado em produção.

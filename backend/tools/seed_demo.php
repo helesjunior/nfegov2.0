@@ -31,14 +31,7 @@ use Spatie\Permission\Models\Role;
  *   Role::findByName('admin-demo', 'web')->delete();
  */
 $adminDemo = Role::findOrCreate('admin-demo', 'web');
-$adminDemo->syncPermissions([
-    'nfe.view',
-    'nfe.export',
-    'certificado.gerenciar',
-    'unidade.gerenciar',
-    'usuario.gerenciar',
-    'sync.executar',
-]);
+$adminDemo->syncPermissions(RolesSeeder::PAPEIS['admin-tenant']);
 
 $tenant = Tenant::firstOrCreate(
     ['cnpj' => '00000000000191'],
@@ -64,6 +57,13 @@ $operador = User::firstOrCreate(
 );
 $operador->assignRole('operador');
 $operador->tenants()->syncWithoutDetaching([$tenant->id]);
+
+$consulta = User::firstOrCreate(
+    ['email' => 'consulta@agu.gov.br'],
+    ['name' => 'Consulta AGU', 'password' => Hash::make('senha123'), 'tenant_id' => $tenant->id],
+);
+$consulta->syncRoles(['consulta']);
+$consulta->tenants()->syncWithoutDetaching([$tenant->id]);
 
 // Admin de demonstração SEM MFA (apenas para inspeção local da interface).
 $adminSemMfa = User::firstOrCreate(
@@ -96,6 +96,7 @@ echo "Pronto!\n";
 echo "  admin@agu.gov.br         / senha123  (admin-tenant — exige MFA)\n";
 echo "  admin.semmfa@agu.gov.br  / senha123  (admin-demo — SEM MFA, só p/ testes)\n";
 echo "  operador@agu.gov.br      / senha123  (operador — sem MFA)\n";
+echo "  consulta@agu.gov.br      / senha123  (consulta — sem MFA)\n";
 echo "  superadmin@agu.gov.br    / senha123  (super-admin — MFA confirmado, 'Todas')\n";
 echo "    segredo TOTP (super-admin): {$segredoSuperAdmin}\n";
 echo "  Tenant #{$tenant->id}, Unidade #{$unidade->id}\n";

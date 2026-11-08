@@ -103,7 +103,7 @@ class BuscaPorChaveEZipTest extends TestCase
             ->postJson('/api/nfses/recuperar', ['unidade_id' => $unidade->id, 'chave' => '123'])
             ->assertStatus(422)->assertJsonValidationErrors('chave');
 
-        $this->actingAs($this->usuario($unidade, 'consulta'))
+        $this->actingAs(User::factory()->comTenant($unidade->tenant_id)->create())
             ->postJson('/api/nfses/recuperar', ['unidade_id' => $unidade->id, 'chave' => $this->chaveNfse()])
             ->assertForbidden();
 
@@ -234,7 +234,7 @@ class BuscaPorChaveEZipTest extends TestCase
             ->assertStatus(202);
         Queue::assertPushed(ExportNfseXmlJob::class, fn ($j) => $j->filtros === ['papel' => 'tomador']);
 
-        $this->actingAs($this->usuario($unidade, 'consulta'))
+        $this->actingAs(User::factory()->comTenant($unidade->tenant_id)->create())
             ->postJson('/api/nfses/export-xml', [])
             ->assertForbidden();
     }

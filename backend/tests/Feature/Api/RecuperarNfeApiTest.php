@@ -15,8 +15,8 @@ use Tests\TestCase;
  * API da recuperação manual de NF-e (`POST /api/nfes/recuperar`).
  *
  * Regras centrais:
- * - Disparar a busca exige `sync.executar` — o papel `consulta` (somente
- *   leitura) recebe 403, pois a busca pode enviar Ciência da Operação.
+ * - Disparar a busca exige `sync.executar` (todos os papéis da entidade têm,
+ *   inclusive `consulta`); quem não tem recebe 403.
  * - A resposta é imediata (202): o trabalho roda em job.
  * - Um pedido idêntico enquanto o job anterior está na fila recebe 409, sem
  *   enfileirar um segundo job.
@@ -53,13 +53,25 @@ class RecuperarNfeApiTest extends TestCase
         Queue::assertPushed(RecuperarNfeJob::class);
     }
 
-    public function test_consulta_recebe_403(): void
+    public function test_consulta_tambem_busca(): void
     {
         Queue::fake();
         $tenant = Tenant::factory()->create();
         $unidade = Unidade::factory()->create(['tenant_id' => $tenant->id]);
 
         $this->actingAs($this->usuarioDoTenant($tenant, 'consulta'))
+            ->postJson('/api/nfes/recuperar', ['unidade_id' => $unidade->id, 'nsu' => 150])
+            ->assertStatus(202);
+    }
+
+    public function test_sem_sync_executar_recebe_403(): void
+    {
+        Queue::fake();
+        $tenant = Tenant::factory()->create();
+        $unidade = Unidade::factory()->create(['tenant_id' => $tenant->id]);
+        $semPermissao = User::factory()->comTenant($tenant)->create();
+
+        $this->actingAs($semPermissao)
             ->postJson('/api/nfes/recuperar', ['unidade_id' => $unidade->id, 'nsu' => 150])
             ->assertStatus(403);
 

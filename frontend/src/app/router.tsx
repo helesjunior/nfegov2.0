@@ -3,7 +3,7 @@ import { useLocation } from 'react-router-dom'
 import { AppShell } from '../components/layout/AppShell'
 import { LoginPage } from '../features/auth/LoginPage'
 import { MfaPage } from '../features/auth/MfaPage'
-import { useSessao } from '../features/auth/session'
+import { temPermissao, useSessao } from '../features/auth/session'
 import { DashboardPage } from '../features/dashboard/DashboardPage'
 import { UnidadeCertificadoRoute } from '../features/certificados/UnidadeCertificadoRoute'
 import { UnidadesPage } from '../features/unidades/UnidadesPage'
@@ -50,6 +50,32 @@ function RotaProtegida({ children }: { children: React.ReactNode }) {
   return <>{children}</>
 }
 
+/**
+ * Guard de permissão: quem não tem a permissão (ou não é super-admin, quando
+ * `soSuperAdmin`) volta para o Painel. Espelha o menu; o backend também nega.
+ */
+function RotaComPermissao({
+  permissao,
+  soSuperAdmin = false,
+  children,
+}: {
+  permissao?: string
+  soSuperAdmin?: boolean
+  children: React.ReactNode
+}) {
+  const { usuario } = useSessao()
+
+  const permitido = soSuperAdmin
+    ? Boolean(usuario?.pode_todas || usuario?.papeis.includes('super-admin'))
+    : permissao === undefined || temPermissao(usuario, permissao)
+
+  if (!permitido) {
+    return <Navigate to="/" replace />
+  }
+
+  return <>{children}</>
+}
+
 export const routes: RouteObject[] = [
   { path: '/login', element: <LoginPage /> },
   { path: '/mfa', element: <MfaPage /> },
@@ -66,12 +92,40 @@ export const routes: RouteObject[] = [
       { path: 'nfes/:chave', element: <NfeDetailPage /> },
       { path: 'nfses', element: <NfseListPage /> },
       { path: 'nfses/:chave', element: <NfseDetailPage /> },
-      { path: 'unidades', element: <UnidadesPage /> },
-      { path: 'unidades/:id/certificado', element: <UnidadeCertificadoRoute /> },
+      {
+        path: 'unidades',
+        element: (
+          <RotaComPermissao permissao="unidade.view">
+            <UnidadesPage />
+          </RotaComPermissao>
+        ),
+      },
+      {
+        path: 'unidades/:id/certificado',
+        element: (
+          <RotaComPermissao permissao="unidade.view">
+            <UnidadeCertificadoRoute />
+          </RotaComPermissao>
+        ),
+      },
       { path: 'sync', element: <SyncPage /> },
       { path: 'notificacoes', element: <NotificacoesPage /> },
-      { path: 'usuarios', element: <UsuariosPage /> },
-      { path: 'entidades', element: <TenantsPage /> },
+      {
+        path: 'usuarios',
+        element: (
+          <RotaComPermissao permissao="usuario.gerenciar">
+            <UsuariosPage />
+          </RotaComPermissao>
+        ),
+      },
+      {
+        path: 'entidades',
+        element: (
+          <RotaComPermissao soSuperAdmin>
+            <TenantsPage />
+          </RotaComPermissao>
+        ),
+      },
       { path: 'minha-conta', element: <MinhaContaPage /> },
     ],
   },
