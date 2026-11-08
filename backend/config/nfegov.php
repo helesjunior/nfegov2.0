@@ -57,7 +57,8 @@ return [
         // Pausa (segundos) entre cada consulta distDFe (respiro para a SEFAZ).
         'sleep_seconds' => (int) env('NFEGOV_SYNC_SLEEP_SECONDS', 2),
 
-        // Dias úteis apenas (o fisco não atualiza fim de semana).
+        // Só de segunda a sexta. A SEFAZ autoriza e distribui NF-e todos os
+        // dias; `false` também consulta no fim de semana.
         'weekdays_only' => (bool) env('NFEGOV_SYNC_WEEKDAYS_ONLY', true),
     ],
 
@@ -99,6 +100,15 @@ return [
         'max_docs' => (int) env('NFEGOV_SEFAZ_MAX_DOCS', 100),
         // Pausa (segundos) entre consultas, para não martelar a SEFAZ.
         'sleep_segundos' => (int) env('NFEGOV_SEFAZ_SLEEP', 2),
+
+        // Regra da SEFAZ: depois de ver a fila vazia (ultNSU = maxNSU), esperar
+        // 1 hora antes de consultar de novo, senão volta cStat 656. 61 = folga.
+        'espera_fila_vazia_minutos' => (int) env('NFEGOV_SEFAZ_ESPERA_FILA_VAZIA_MINUTES', 61),
+
+        // Quando a execução para no teto (iterações/documentos) e a fila ainda
+        // tem documentos, a próxima parte começa depois destes segundos, em vez
+        // de esperar a próxima rodada do agendador.
+        'continuacao_segundos' => (int) env('NFEGOV_SEFAZ_CONTINUACAO_SECONDS', 60),
     ],
 
     /*

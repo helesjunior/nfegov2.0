@@ -136,6 +136,18 @@ class SefazGuard
     }
 
     /**
+     * Janela de escalonamento da NF-e. Nunca maior que o intervalo do
+     * agendador (menos 5 min), para a rodada terminar antes da próxima.
+     */
+    protected function janelaMinutos(): int
+    {
+        $janela = $this->config('slot_window_minutes', 180);
+        $intervalo = max(1, (int) config('nfegov.sync.interval_hours', 3)) * 60;
+
+        return max(1, min($janela, $intervalo - 5));
+    }
+
+    /**
      * Calcula o atraso (em segundos) para a próxima execução da unidade,
      * distribuindo as unidades ao longo da janela (`slot_window_minutes`).
      *
@@ -144,7 +156,7 @@ class SefazGuard
      */
     public function slotPara(Unidade $unidade): int
     {
-        $janelaSegundos = ((int) $this->config('slot_window_minutes', 180)) * 60;
+        $janelaSegundos = $this->janelaMinutos() * 60;
 
         // Distribuição estável por unidade: hash do id define a posição
         // relativa [0,1). Determinístico (mesmo atraso a cada execução) e

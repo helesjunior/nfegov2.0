@@ -68,7 +68,10 @@ return [
             'driver' => 'redis',
             'connection' => env('REDIS_QUEUE_CONNECTION', 'default'),
             'queue' => env('REDIS_QUEUE', 'default'),
-            'retry_after' => (int) env('REDIS_QUEUE_RETRY_AFTER', 90),
+            // Maior que o `timeout` das filas `sefaz`/`adn` (900 s no Horizon).
+            // Com 90 s, um sync longo voltava para a fila no meio da execução e
+            // outro worker o marcava como falho (tentativas esgotadas).
+            'retry_after' => (int) env('REDIS_QUEUE_RETRY_AFTER', 960),
             'block_for' => null,
             'after_commit' => false,
         ],
