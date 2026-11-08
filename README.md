@@ -2,7 +2,7 @@
 
 **NFE-Gov 2.0** — sistema multitenant de recepção e consulta de **NF-e** e **NFS-e** para entidades públicas.
 
-Conecta-se periodicamente à SEFAZ (NF-e) e ao Ambiente de Dados Nacional da NFS-e (a cada
+Conecta-se periodicamente à SEFAZ (NF-e, de hora em hora) e ao Ambiente de Dados Nacional da NFS-e (a cada
 3 horas), via certificado digital e-CNPJ de cada unidade gestora, para baixar todas as notas
 destinadas ao CNPJ da unidade, armazená-las e disponibilizá-las para consulta.
 
@@ -145,8 +145,8 @@ municípios são os do ambiente em que a captura foi feita.
 
 ### Sincronização com a SEFAZ (NF-e)
 
-O scheduler roda `SyncNfe` a cada `NFEGOV_SYNC_INTERVAL_HOURS` horas (padrão **3**), só em
-dias úteis enquanto `NFEGOV_SYNC_WEEKDAYS_ONLY=true` (padrão; ver `routes/console.php`).
+O scheduler roda `SyncNfe` a cada `NFEGOV_SYNC_INTERVAL_HOURS` horas (padrão **1**, todos os dias); só em
+dias úteis se `NFEGOV_SYNC_WEEKDAYS_ONLY=true` (ver `routes/console.php`).
 Esse comando despacha o `DispatchSyncNfeJob`, que **escalona** as unidades ativas ao longo
 da janela (`slot_window_minutes`, padrão 180 min, nunca maior que o intervalo) para não criar
 picos — o limite da SEFAZ é por IP, e todos os tenants compartilham a mesma saída.
@@ -398,9 +398,9 @@ Além das chaves padrão do Laravel, o NFeGov lê as seguintes (`config/nfegov.p
 
 | Variável | Padrão | Descrição |
 |---|---|---|
-| `NFEGOV_SYNC_INTERVAL_HOURS` | `3` | Intervalo do agendamento (horas) |
+| `NFEGOV_SYNC_INTERVAL_HOURS` | `1` | Intervalo do agendamento da NF-e (horas) |
 | `NFEGOV_SYNC_SLEEP_SECONDS` | `2` | Pausa entre consultas distDFe |
-| `NFEGOV_SYNC_WEEKDAYS_ONLY` | `true` | Sincronizar apenas em dias úteis |
+| `NFEGOV_SYNC_WEEKDAYS_ONLY` | `false` | Sincronizar a NF-e apenas em dias úteis |
 | `NFEGOV_SEFAZ_RATE_PER_MINUTE` | `30` | Teto global de consultas/min (multitenant) |
 | `NFEGOV_SEFAZ_CIRCUIT_BREAKER_MINUTES` | `60` | Pausa ao receber `cStat 656` |
 | `NFEGOV_SEFAZ_SLOT_WINDOW_MINUTES` | `180` | Janela de escalonamento das unidades |
@@ -546,6 +546,7 @@ Regra de versão (SemVer):
 
 | Versão | O que entrou |
 |---|---|
+| 2.7.1 | NF-e de hora em hora, todos os dias, por padrão |
 | 2.7.0 | Ritmo da NF-e: regra de 1 h da SEFAZ por unidade, continuação automática e intervalo configurável |
 | 2.6.0 | NFS-e no painel (indicadores e gráficos) e documentação atualizada |
 | 2.5.0 | DANFSe local, manifestação do tomador, ZIP de XMLs e busca por chave de NFS-e |

@@ -39,8 +39,8 @@ eram cautela nossa?
 
 | Cautela | Antes | Agora |
 |---|---|---|
-| Intervalo do agendador | 3 h fixo | `NFEGOV_SYNC_INTERVAL_HOURS` (padrão 3) |
-| Só dias úteis | fixo | `NFEGOV_SYNC_WEEKDAYS_ONLY` (padrão `true`) |
+| Intervalo do agendador | 3 h fixo | `NFEGOV_SYNC_INTERVAL_HOURS` (padrão 1 desde a 2.7.1) |
+| Só dias úteis | fixo | `NFEGOV_SYNC_WEEKDAYS_ONLY` (padrão `false` desde a 2.7.1) |
 | Execução que para no teto (150 consultas ou 100 documentos) com a fila ainda cheia | esperava a próxima rodada (3 h, ou o fim de semana) | a próxima parte entra em `NFEGOV_SEFAZ_CONTINUACAO_SECONDS` (60 s) |
 | Janela de escalonamento | 180 min mesmo que o intervalo fosse menor | limitada ao intervalo menos 5 min |
 | Pausa de 2 s entre consultas, teto global de 30/min, 1–2 workers | mantidos | mantidos |
