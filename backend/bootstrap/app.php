@@ -18,6 +18,10 @@ return Application::configure(basePath: dirname(__DIR__))
         // SPA no mesmo domínio: Sanctum autentica por cookie de sessão.
         $middleware->statefulApi();
 
+        // Em produção o HTTPS termina no Caddy, que repassa ao nginx: confia nos
+        // cabeçalhos X-Forwarded-* para gerar URLs https e cookies seguros.
+        $middleware->trustProxies(at: '*');
+
         $middleware->alias([
             'mfa' => \App\Http\Middleware\RequireMfa::class,
             'mfa.recent' => \App\Http\Middleware\RequireRecentMfa::class,
