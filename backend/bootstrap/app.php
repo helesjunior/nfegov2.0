@@ -15,8 +15,12 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
-        // SPA no mesmo domínio: Sanctum autentica por cookie de sessão.
-        $middleware->statefulApi();
+        // SPA no mesmo domínio: Sanctum autentica por cookie de sessão. O
+        // routes/api.php já envolve tudo no grupo `web` (sessão + CSRF), então
+        // NÃO usar statefulApi(): ele iniciaria a sessão uma segunda vez quando
+        // o Origin/Referer está em SANCTUM_STATEFUL_DOMAINS, o cookie chegaria
+        // já decifrado, ganharia um ID novo e, com SESSION_DRIVER=database, a
+        // sessão nunca seria gravada (401 a partir da 2ª requisição).
 
         // Em produção o HTTPS termina no Caddy, que repassa ao nginx: confia nos
         // cabeçalhos X-Forwarded-* para gerar URLs https e cookies seguros.
