@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { authApi, mensagemDeErro } from '../../lib/api'
 import { AuthLayout } from '../../components/layout/AuthLayout'
+import { GoogleLogo } from './GoogleLogo'
 
 /**
  * Mensagens para os códigos que o servidor devolve em `/login?erro=...` após o
@@ -105,7 +106,8 @@ export function LoginPage() {
           <div className="auth-divisor" aria-hidden="true">
             ou
           </div>
-          <a href="/auth/google/redirect" className="botao botao--secundario botao--bloco">
+          <a href="/auth/google/redirect" className="botao botao--secundario botao--bloco botao--google">
+            <GoogleLogo />
             Entrar com Google
           </a>
         </>

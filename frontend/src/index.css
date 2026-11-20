@@ -794,6 +794,15 @@ a.botao {
   text-decoration: none;
 }
 
+/* "Entrar com Google": a logo fica à esquerda do texto, com o espaçamento do guia de marca. */
+.botao--google {
+  gap: 10px;
+}
+
+.botao--google svg {
+  flex-shrink: 0;
+}
+
 .carregando-tela {
   min-height: 100%;
   display: grid;

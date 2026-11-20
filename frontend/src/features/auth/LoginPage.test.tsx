@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Routes, Route } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
@@ -150,6 +150,11 @@ describe('LoginPage', () => {
 
       const botao = await screen.findByRole('link', { name: /entrar com google/i })
       expect(botao).toHaveAttribute('href', '/auth/google/redirect')
+      // A logo oficial do Google acompanha o texto, mas é decorativa: o nome
+      // acessível do botão continua sendo só o texto.
+      const logo = within(botao).getByTestId('logo-google')
+      expect(logo).toHaveAttribute('aria-hidden', 'true')
+      expect(botao).toHaveAccessibleName(/^entrar com google$/i)
       // O login por e-mail e senha continua disponível.
       expect(screen.getByRole('button', { name: /^entrar$/i })).toBeInTheDocument()
     })
