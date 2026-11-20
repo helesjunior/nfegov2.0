@@ -70,12 +70,23 @@ export interface RespostaLogin {
   user: Usuario
 }
 
+/** Opções de login oferecidas pelo servidor (endpoint público). */
+export interface OpcoesLogin {
+  /** Login com Google Workspace habilitado e configurado. */
+  google: boolean
+}
+
 // ---- Endpoints --------------------------------------------------------------
 
 export const authApi = {
   async login(email: string, password: string, remember = false): Promise<RespostaLogin> {
     const { data } = await http.post<RespostaLogin>('/login', { email, password, remember })
     return data
+  },
+
+  async opcoes(): Promise<OpcoesLogin> {
+    const { data } = await http.get<{ data: OpcoesLogin }>('/login/opcoes')
+    return data.data
   },
 
   async me(): Promise<RespostaLogin> {

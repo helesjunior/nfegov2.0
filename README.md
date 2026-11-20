@@ -390,6 +390,47 @@ Tela **Usuários**: listar, criar, editar e ativar/desativar. Um usuário tem **
 Um usuário **inativo** **não** consegue logar (ver `POST /api/login`) e, se a sessão já estava
 aberta, ela **cai na próxima requisição** (`SetTenantContext` responde 403 "Usuário inativo").
 
+### Login com Google Workspace (opcional)
+
+**Desligado por padrão.** Com `NFEGOV_GOOGLE_LOGIN_HABILITADO=false` as rotas `/auth/google/*`
+respondem 404, o botão **Entrar com Google** não aparece e o login por e-mail e senha segue como
+sempre. Para ligar, é preciso a chave **e** as credenciais **e** ao menos um domínio — faltando
+qualquer um, o recurso continua desligado.
+
+**Como funciona.** O Google só *autentica* quem é a pessoa; quem pode entrar continua sendo
+decidido pelo NFeGov:
+
+- o usuário **precisa já estar cadastrado e ativo** (tela Usuários); não há criação automática de conta;
+- o e-mail precisa ser de um domínio de `NFEGOV_GOOGLE_DOMINIOS`, confirmado pelo claim `hd` que o
+  **Google devolve** (contas pessoais `@gmail.com` são recusadas) e com `email_verified`;
+- no primeiro login a conta Google é amarrada ao usuário pelo identificador fixo (`sub`, coluna
+  `users.google_id`); um e-mail já amarrado a **outra** conta Google é recusado;
+- **o segundo fator (TOTP) do NFeGov continua valendo**: depois do Google, os papéis que exigem MFA
+  (`super-admin`, `admin-tenant`) caem em `/mfa` como no login por senha;
+- toda tentativa é auditada (`login.google` / `login.google.negado`, com o motivo). Na tela vai só
+  um código genérico, que não revela se o e-mail existe no sistema.
+
+**Configuração.**
+
+1. No Google Cloud Console, crie um **cliente OAuth** (aplicativo da Web). Na tela de consentimento,
+   use o tipo **Interno** (só contas do seu Workspace).
+2. Registre o URI de retorno `https://<seu-domínio>/auth/google/callback` (HTTPS e o mesmo host de `APP_URL`).
+3. No `backend/.env`:
+
+   ```dotenv
+   NFEGOV_GOOGLE_LOGIN_HABILITADO=true
+   NFEGOV_GOOGLE_DOMINIOS=exemplo.com.br
+   GOOGLE_CLIENT_ID=...
+   GOOGLE_CLIENT_SECRET=...
+   ```
+
+4. `docker compose exec app composer install --no-dev --optimize-autoloader` (traz o `laravel/socialite`),
+   `php artisan migrate --force` (coluna `google_id`), depois
+   `php artisan config:cache` e `docker compose restart app nginx`.
+
+Para **desligar**, volte a chave para `false` e repita o `config:cache` + restart. Quem já entrou
+continua com a sessão; o login por senha não é afetado.
+
 ### Unidades — edição e desativação
 
 Na tela da unidade é possível editar os dados cadastrais e **ativar/desativar**. A **entidade
@@ -430,6 +471,10 @@ Além das chaves padrão do Laravel, o NFeGov lê as seguintes (`config/nfegov.p
 | `NFEGOV_CERT_MAX_KB` | `5120` | Tamanho máximo do PFX (KB) |
 | `NFEGOV_XML_DISK` / `NFEGOV_XML_ROOT` | `local` / `tenants` | Disco e raiz dos XMLs |
 | `NFEGOV_CERT_DISK` / `NFEGOV_CERT_ROOT` | `local` / `certificados` | Disco e raiz dos PFX |
+| `NFEGOV_GOOGLE_LOGIN_HABILITADO` | `false` | Liga/desliga o login com Google Workspace (opcional; ver "Login com Google Workspace") |
+| `NFEGOV_GOOGLE_DOMINIOS` | _(vazio)_ | Domínios do Workspace aceitos, separados por vírgula (ex.: `exemplo.com.br`). Vazio = nenhum login Google é aceito |
+| `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | _(vazio)_ | Credenciais do cliente OAuth criado no Google Cloud |
+| `GOOGLE_REDIRECT_URI` | `<APP_URL>/auth/google/callback` | URI de retorno registrada no Google Cloud |
 
 ## Desenvolvimento
 
@@ -569,6 +614,8 @@ same-origin) e escopo de tenant por usuário autenticado.
 |---|---|---|
 | `GET` | `/api/version` | Versão + timestamp da build (público; rodapé do menu) |
 | `POST` | `/api/login` | Autenticação (etapa 1) |
+| `GET` | `/api/login/opcoes` | Opções de login oferecidas (público): `{ data: { google: bool } }` |
+| `GET` | `/auth/google/redirect` · `/auth/google/callback` | Login com Google Workspace (fora de `/api`; 404 quando desligado) |
 | `GET` | `/api/me` | Usuário atual, papéis/permissões, tenant ativo e entidades disponíveis |
 | `POST` | `/api/sessao/tenant` | Define o tenant ativo da sessão (seletor de entidade) |
 | `POST` | `/api/mfa/setup` · `/confirm` · `/verify` | Configuração e step-up do TOTP |

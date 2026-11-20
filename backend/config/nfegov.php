@@ -212,6 +212,32 @@ return [
         'cert_root' => env('NFEGOV_CERT_ROOT', 'certificados'),
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Login com Google Workspace (opcional)
+    |--------------------------------------------------------------------------
+    |
+    | DESLIGADO por padrão: com `NFEGOV_GOOGLE_LOGIN_HABILITADO=false` as rotas
+    | `/auth/google/*` respondem 404, o botão não aparece na tela de login e o
+    | login por e-mail/senha segue exatamente como antes.
+    |
+    | O Google só AUTENTICA: o usuário precisa já estar cadastrado (e ativo) no
+    | NFeGov; não há criação automática de conta. O segundo fator (TOTP) do
+    | NFeGov continua valendo depois do login pelo Google.
+    |
+    | `dominios`: domínios do Workspace aceitos (claim `hd` do Google),
+    | separados por vírgula. Vazio = nenhum login pelo Google é aceito.
+    |
+    */
+
+    'google_login' => [
+        'habilitado' => (bool) env('NFEGOV_GOOGLE_LOGIN_HABILITADO', false),
+        'dominios' => array_values(array_filter(array_map(
+            static fn (string $d): string => strtolower(trim($d)),
+            explode(',', (string) env('NFEGOV_GOOGLE_DOMINIOS', '')),
+        ))),
+    ],
+
     'mfa' => [
         // Papéis que são OBRIGADOS a configurar/confirmar o segundo fator.
         'papeis_obrigatorios' => ['super-admin', 'admin-tenant'],

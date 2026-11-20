@@ -16,9 +16,11 @@ const navigateMock = vi.fn()
 
 // Mocka o serviço de autenticação consumido pela página.
 const loginMock = vi.fn()
+const opcoesMock = vi.fn()
 vi.mock('../../lib/api', () => ({
   authApi: {
     login: (...args: unknown[]) => loginMock(...args),
+    opcoes: (...args: unknown[]) => opcoesMock(...args),
     me: vi.fn(),
     logout: vi.fn(),
   },
@@ -34,14 +36,14 @@ vi.mock('react-router-dom', async () => {
   }
 })
 
-function renderLogin() {
+function renderLogin(entrada = '/login') {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
   })
 
   return render(
     <QueryClientProvider client={queryClient}>
-      <MemoryRouter initialEntries={['/login']}>
+      <MemoryRouter initialEntries={[entrada]}>
         <Routes>
           <Route path="/login" element={<LoginPage />} />
           <Route path="/" element={<div>Tela inicial</div>} />
@@ -55,6 +57,9 @@ describe('LoginPage', () => {
   beforeEach(() => {
     navigateMock.mockReset()
     loginMock.mockReset()
+    opcoesMock.mockReset()
+    // Padrão: login com Google desligado (como o servidor entrega por padrão).
+    opcoesMock.mockResolvedValue({ google: false })
   })
 
   it('renderiza os campos de e-mail e senha', () => {
@@ -129,5 +134,46 @@ describe('LoginPage', () => {
     await user.click(screen.getByRole('button', { name: /entrar/i }))
 
     await waitFor(() => expect(navigateMock).toHaveBeenCalledWith('/mfa'))
+  })
+  describe('login com Google', () => {
+    it('não mostra o botão quando o servidor mantém o Google desligado', async () => {
+      renderLogin()
+
+      await waitFor(() => expect(opcoesMock).toHaveBeenCalled())
+      expect(screen.queryByRole('link', { name: /entrar com google/i })).not.toBeInTheDocument()
+    })
+
+    it('mostra o botão, apontando para o servidor, quando o Google está habilitado', async () => {
+      opcoesMock.mockResolvedValue({ google: true })
+
+      renderLogin()
+
+      const botao = await screen.findByRole('link', { name: /entrar com google/i })
+      expect(botao).toHaveAttribute('href', '/auth/google/redirect')
+      // O login por e-mail e senha continua disponível.
+      expect(screen.getByRole('button', { name: /^entrar$/i })).toBeInTheDocument()
+    })
+
+    it('não mostra o botão se a consulta das opções falhar', async () => {
+      opcoesMock.mockRejectedValue(new Error('indisponível'))
+
+      renderLogin()
+
+      await waitFor(() => expect(opcoesMock).toHaveBeenCalled())
+      expect(screen.queryByRole('link', { name: /entrar com google/i })).not.toBeInTheDocument()
+      expect(screen.getByRole('button', { name: /^entrar$/i })).toBeInTheDocument()
+    })
+
+    it('mostra a mensagem quando o servidor volta com um erro conhecido', () => {
+      renderLogin('/login?erro=google_nao_autorizado')
+
+      expect(screen.getByRole('alert')).toHaveTextContent(/não tem acesso ao sistema/i)
+    })
+
+    it('ignora códigos de erro desconhecidos (nada da URL é refletido)', () => {
+      renderLogin('/login?erro=<b>injetado</b>')
+
+      expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    })
   })
 })
