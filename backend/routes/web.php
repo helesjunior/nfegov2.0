@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Auth\GoogleLoginController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -12,6 +13,16 @@ use Illuminate\Support\Facades\Route;
 | o `index.html`, deixando o roteamento para o React Router.
 |
 */
+
+/*
+| Login com Google Workspace (opcional, desligado por padrão).
+| Sempre registradas; com o recurso desligado respondem 404 no controller
+| (assim a chave vale mesmo com `route:cache`). Precisam vir ANTES do catch-all.
+*/
+Route::prefix('auth/google')->middleware('throttle:20,1')->group(function () {
+    Route::get('/redirect', [GoogleLoginController::class, 'redirect'])->name('auth.google.redirect');
+    Route::get('/callback', [GoogleLoginController::class, 'callback'])->name('auth.google.callback');
+});
 
 Route::get('/{rota?}', function () {
     $index = public_path('spa/index.html');

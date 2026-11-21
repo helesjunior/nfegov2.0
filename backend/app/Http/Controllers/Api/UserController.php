@@ -8,12 +8,14 @@ use App\Http\Requests\UpdateUserRequest;
 use App\Http\Resources\UserResource;
 use App\Models\Concerns\Auditable;
 use App\Models\User;
+use App\Support\GoogleLogin;
 use App\Support\TenantContext;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Validation\ValidationException;
 
 /**
  * CRUD de Usuários. Vínculo N:N (tenant_user) é a fonte de verdade.
@@ -31,7 +33,11 @@ class UserController extends Controller
         // Respeita o seletor: contexto nulo (super-admin "Todas") ⇒ todos.
         $contexto = TenantContext::id();
         if ($contexto !== null) {
-            $query->whereHas('tenants', fn ($q) => $q->where('tenants.id', $contexto));
+            // Os cadastros pendentes (Google) ainda não têm entidade: quem gerencia
+            // usuários precisa vê-los para aprovar.
+            $query->where(fn ($q) => $q
+                ->whereHas('tenants', fn ($t) => $t->where('tenants.id', $contexto))
+                ->orWhere('aprovacao_pendente', true));
         }
 
         return UserResource::collection($query->orderBy('name')->paginate(50));
@@ -40,6 +46,12 @@ class UserController extends Controller
     public function store(StoreUserRequest $request): JsonResponse
     {
         Gate::authorize('create', User::class);
+
+        // Modo exclusivo do Google: usuário novo nasce pelo login Google (pendente)
+        // e é aprovado na lista. Só o super-admin ainda cadastra à mão.
+        if (GoogleLogin::exclusivo() && ! $request->user()->hasRole('super-admin')) {
+            abort(403, 'O cadastro de usuários é feito pelo login com Google. Aprove quem aguarda na lista.');
+        }
 
         $dados = $request->validated();
         $this->autorizaVinculos($request, $dados['tenants'], $dados['papel']);
@@ -78,9 +90,29 @@ class UserController extends Controller
             abort(403, 'Não é possível alterar a própria conta por aqui.');
         }
 
+        // Modo exclusivo: o e-mail é a identidade do Google. Mudá-lo seria
+        // reaproveitar a conta para outra pessoa (cadastro por fora do Google).
+        if (
+            GoogleLogin::exclusivo()
+            && ! $request->user()->hasRole('super-admin')
+            && (string) $dados['email'] !== (string) $usuario->email
+        ) {
+            abort(403, 'Com o login Google exclusivo, o e-mail do usuário não pode ser alterado.');
+        }
+
         $this->autorizaVinculos($request, $dados['tenants'], $dados['papel']);
 
-        DB::transaction(function () use ($usuario, $dados) {
+        $eraPendente = (bool) $usuario->aprovacao_pendente;
+
+        // Aprovar um cadastro pendente é escolher a entidade: sem ela o usuário
+        // continuaria sem acesso a nada, então a tela precisa avisar em vez de salvar "em vão".
+        if ($eraPendente && $dados['tenants'] === []) {
+            throw ValidationException::withMessages([
+                'tenants' => 'Escolha ao menos uma entidade para aprovar este cadastro.',
+            ]);
+        }
+
+        DB::transaction(function () use ($usuario, $dados, $eraPendente) {
             $usuario->fill([
                 'name' => $dados['name'],
                 'email' => $dados['email'],
@@ -93,7 +125,16 @@ class UserController extends Controller
 
             $usuario->syncRoles([$dados['papel']]);
             $usuario->tenants()->sync($dados['tenants']);
+
+            // Aprovação = vincular a uma entidade: o cadastro deixa de ser pendente e já fica ativo.
+            if ($eraPendente) {
+                $usuario->forceFill(['aprovacao_pendente' => false, 'ativo' => true])->save();
+            }
         });
+
+        if ($eraPendente) {
+            $this->audit('usuario.pendente.vinculado', ['email' => $usuario->email, 'papel' => $dados['papel'], 'tenants' => $dados['tenants']], 'usuario', $usuario->id, $request->user(), $request);
+        }
 
         $this->audit('usuario.atualizado', ['email' => $usuario->email, 'papel' => $dados['papel']], 'usuario', $usuario->id, $request->user(), $request);
 
@@ -105,6 +146,14 @@ class UserController extends Controller
         Gate::authorize('desativar', $usuario);
 
         $dados = $request->validate(['ativo' => ['required', 'boolean']]);
+
+        // Pendente sem entidade não se "ativa" no botão: a aprovação (que escolhe a entidade) já ativa.
+        if ($usuario->aprovacao_pendente && $dados['ativo']) {
+            throw ValidationException::withMessages([
+                'ativo' => 'Este cadastro aguarda aprovação: edite-o, escolha a entidade e aprove.',
+            ]);
+        }
+
         $usuario->update(['ativo' => $dados['ativo']]);
 
         $this->audit('usuario.ativo.alterado', ['ativo' => $usuario->ativo], 'usuario', $usuario->id, $request->user(), $request);

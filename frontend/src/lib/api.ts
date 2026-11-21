@@ -70,12 +70,25 @@ export interface RespostaLogin {
   user: Usuario
 }
 
+/** Opções de login oferecidas pelo servidor (endpoint público). */
+export interface OpcoesLogin {
+  /** Login com Google Workspace habilitado e configurado. */
+  google: boolean
+  /** Modo exclusivo valendo: sem cadastro manual (exceto super-admin) e sem senha no domínio. */
+  google_exclusivo?: boolean
+}
+
 // ---- Endpoints --------------------------------------------------------------
 
 export const authApi = {
   async login(email: string, password: string, remember = false): Promise<RespostaLogin> {
     const { data } = await http.post<RespostaLogin>('/login', { email, password, remember })
     return data
+  },
+
+  async opcoes(): Promise<OpcoesLogin> {
+    const { data } = await http.get<{ data: OpcoesLogin }>('/login/opcoes')
+    return data.data
   },
 
   async me(): Promise<RespostaLogin> {
@@ -295,6 +308,8 @@ export interface UsuarioAdmin {
   name: string
   email: string
   ativo: boolean
+  /** Cadastro criado pelo login Google, ainda sem entidade, aguardando aprovação. */
+  aprovacao_pendente?: boolean
   tenant_id: number | null
   papeis: string[]
   tenants: TenantResumo[]

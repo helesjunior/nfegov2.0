@@ -13,7 +13,7 @@ use Illuminate\Notifications\Notifiable;
 use Spatie\Permission\Traits\HasRoles;
 
 #[Fillable(['name', 'email', 'password', 'tenant_id', 'ativo'])]
-#[Hidden(['password', 'remember_token', 'two_factor_secret'])]
+#[Hidden(['password', 'remember_token', 'two_factor_secret', 'google_id'])]
 class User extends Authenticatable
 {
     /** @use HasFactory<UserFactory> */
@@ -28,6 +28,7 @@ class User extends Authenticatable
     {
         return [
             'ativo' => 'boolean',
+            'aprovacao_pendente' => 'boolean',
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
             'tenant_id' => 'integer',

@@ -773,6 +773,36 @@ a:hover {
   font-size: 0.95rem;
 }
 
+.auth-divisor {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 20px 0;
+  color: var(--cor-texto-suave);
+  font-size: 0.85rem;
+}
+
+.auth-divisor::before,
+.auth-divisor::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--cor-borda-forte);
+}
+
+a.botao {
+  text-decoration: none;
+}
+
+/* "Entrar com Google": a logo fica à esquerda do texto, com o espaçamento do guia de marca. */
+.botao--google {
+  gap: 10px;
+}
+
+.botao--google svg {
+  flex-shrink: 0;
+}
+
 .carregando-tela {
   min-height: 100%;
   display: grid;

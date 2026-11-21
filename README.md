@@ -390,6 +390,75 @@ Tela **Usuários**: listar, criar, editar e ativar/desativar. Um usuário tem **
 Um usuário **inativo** **não** consegue logar (ver `POST /api/login`) e, se a sessão já estava
 aberta, ela **cai na próxima requisição** (`SetTenantContext` responde 403 "Usuário inativo").
 
+### Login com Google Workspace (opcional)
+
+**Desligado por padrão.** Com `NFEGOV_GOOGLE_LOGIN_HABILITADO=false` as rotas `/auth/google/*`
+respondem 404, o botão **Entrar com Google** não aparece e o login por e-mail e senha segue como
+sempre. Para ligar, é preciso a chave **e** as credenciais **e** ao menos um domínio — faltando
+qualquer um, o recurso continua desligado.
+
+**Como funciona.** O Google só *autentica* quem é a pessoa; quem pode entrar continua sendo
+decidido pelo NFeGov:
+
+- o usuário **precisa já estar cadastrado e ativo** (tela Usuários); por padrão não há criação
+  automática de conta (ver **Cadastro pendente**, abaixo);
+- o e-mail precisa ser de um domínio de `NFEGOV_GOOGLE_DOMINIOS`, confirmado pelo claim `hd` que o
+  **Google devolve** (contas pessoais `@gmail.com` são recusadas) e com `email_verified`;
+- no primeiro login a conta Google é amarrada ao usuário pelo identificador fixo (`sub`, coluna
+  `users.google_id`); um e-mail já amarrado a **outra** conta Google é recusado;
+- **o segundo fator (TOTP) do NFeGov continua valendo**: depois do Google, os papéis que exigem MFA
+  (`super-admin`, `admin-tenant`) caem em `/mfa` como no login por senha;
+- toda tentativa é auditada (`login.google` / `login.google.negado`, com o motivo). Na tela vai só
+  um código genérico, que não revela se o e-mail existe no sistema.
+
+**Cadastro pendente (opcional).** Com `NFEGOV_GOOGLE_AUTOCADASTRO=pendente`, o primeiro login de
+alguém de um domínio permitido que ainda não existe cria um cadastro **inativo**, com papel `consulta`,
+**sem vínculo com entidade** e senha aleatória (o acesso é só pelo Google). A pessoa vê *"Cadastro
+recebido…"* e **não entra**. O acesso só é liberado quando um `super-admin` ativa o usuário e o vincula
+a uma ou mais entidades na tela Usuários. Observações: o usuário pendente aparece na listagem apenas
+para o `super-admin` (com o contexto "Todas"), porque o `admin-tenant` só enxerga usuários vinculados
+às suas entidades; o evento fica na auditoria como `login.google.autocadastro`. Qualquer valor diferente
+de `pendente` equivale a `desligado`.
+
+**Modo exclusivo (opcional).** Com `NFEGOV_GOOGLE_EXCLUSIVO=true` — e somente se o login Google
+estiver no ar **e** o autocadastro for `pendente`; senão a chave é ignorada e ninguém é trancado —:
+
+- quem **não é `super-admin`** não cadastra usuário: a API recusa (403) e a tela Usuários esconde
+  "Novo usuário". Usuário novo nasce pelo login Google, como pendente;
+- o `admin-tenant` enxerga os pendentes na lista e os **ativa para a sua entidade** (só pode
+  vincular às entidades a que ele mesmo pertence); o pendente deixa de ser pendente quando recebe
+  uma entidade (auditoria `usuario.pendente.vinculado`);
+- quem tem e-mail de um domínio permitido **entra só pelo Google**: o login por senha é recusado
+  (auditoria `login.senha.bloqueado`). Suspender a conta no Workspace encerra o acesso;
+- o e-mail dessas contas não pode ser alterado por quem não é `super-admin`, nem pelo próprio
+  usuário (evita reabrir o login por senha trocando para um e-mail de fora do domínio);
+- **o `super-admin` continua como hoje**: entra por senha (com MFA), cadastra e edita usuários. É o
+  acesso de emergência caso o Google/OAuth saia do ar. Usuários com e-mail **fora** do domínio
+  também seguem entrando por senha.
+
+Sessões já abertas por senha não são derrubadas ao ligar o modo; expiram normalmente.
+
+**Configuração.**
+
+1. No Google Cloud Console, crie um **cliente OAuth** (aplicativo da Web). Na tela de consentimento,
+   use o tipo **Interno** (só contas do seu Workspace).
+2. Registre o URI de retorno `https://<seu-domínio>/auth/google/callback` (HTTPS e o mesmo host de `APP_URL`).
+3. No `backend/.env`:
+
+   ```dotenv
+   NFEGOV_GOOGLE_LOGIN_HABILITADO=true
+   NFEGOV_GOOGLE_DOMINIOS=exemplo.com.br
+   GOOGLE_CLIENT_ID=...
+   GOOGLE_CLIENT_SECRET=...
+   ```
+
+4. `docker compose exec app composer install --no-dev --optimize-autoloader` (traz o `laravel/socialite`),
+   `php artisan migrate --force` (coluna `google_id`), depois
+   `php artisan config:cache` e `docker compose restart app nginx`.
+
+Para **desligar**, volte a chave para `false` e repita o `config:cache` + restart. Quem já entrou
+continua com a sessão; o login por senha não é afetado.
+
 ### Unidades — edição e desativação
 
 Na tela da unidade é possível editar os dados cadastrais e **ativar/desativar**. A **entidade
@@ -430,6 +499,12 @@ Além das chaves padrão do Laravel, o NFeGov lê as seguintes (`config/nfegov.p
 | `NFEGOV_CERT_MAX_KB` | `5120` | Tamanho máximo do PFX (KB) |
 | `NFEGOV_XML_DISK` / `NFEGOV_XML_ROOT` | `local` / `tenants` | Disco e raiz dos XMLs |
 | `NFEGOV_CERT_DISK` / `NFEGOV_CERT_ROOT` | `local` / `certificados` | Disco e raiz dos PFX |
+| `NFEGOV_GOOGLE_LOGIN_HABILITADO` | `false` | Liga/desliga o login com Google Workspace (opcional; ver "Login com Google Workspace") |
+| `NFEGOV_GOOGLE_DOMINIOS` | _(vazio)_ | Domínios do Workspace aceitos, separados por vírgula (ex.: `exemplo.com.br`). Vazio = nenhum login Google é aceito |
+| `NFEGOV_GOOGLE_AUTOCADASTRO` | `desligado` | `pendente` cria um cadastro inativo (papel `consulta`, sem entidade) no 1º login Google de alguém do domínio; um `super-admin` aprova. Qualquer outro valor = desligado |
+| `NFEGOV_GOOGLE_EXCLUSIVO` | `false` | Modo exclusivo: sem cadastro manual (exceto super-admin) e sem senha para e-mail do domínio. Só vale com login Google no ar e `AUTOCADASTRO=pendente` |
+| `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | _(vazio)_ | Credenciais do cliente OAuth criado no Google Cloud |
+| `GOOGLE_REDIRECT_URI` | `<APP_URL>/auth/google/callback` | URI de retorno registrada no Google Cloud |
 
 ## Desenvolvimento
 
@@ -569,6 +644,8 @@ same-origin) e escopo de tenant por usuário autenticado.
 |---|---|---|
 | `GET` | `/api/version` | Versão + timestamp da build (público; rodapé do menu) |
 | `POST` | `/api/login` | Autenticação (etapa 1) |
+| `GET` | `/api/login/opcoes` | Opções de login oferecidas (público): `{ data: { google: bool } }` |
+| `GET` | `/auth/google/redirect` · `/auth/google/callback` | Login com Google Workspace (fora de `/api`; 404 quando desligado) |
 | `GET` | `/api/me` | Usuário atual, papéis/permissões, tenant ativo e entidades disponíveis |
 | `POST` | `/api/sessao/tenant` | Define o tenant ativo da sessão (seletor de entidade) |
 | `POST` | `/api/mfa/setup` · `/confirm` · `/verify` | Configuração e step-up do TOTP |

@@ -19,6 +19,7 @@ use App\Http\Controllers\Api\TenantController;
 use App\Http\Controllers\Api\UnidadeController;
 use App\Http\Controllers\Api\UserController;
 use App\Http\Controllers\Api\VersaoController;
+use App\Http\Controllers\Auth\LoginOpcoesController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -46,6 +47,9 @@ use Illuminate\Support\Facades\Route;
 
 Route::middleware('web')->group(function () {
     Route::post('/login', [AuthController::class, 'login'])->name('api.login');
+
+    // Opções de login disponíveis (pública): decide se a tela mostra "Entrar com Google".
+    Route::get('/login/opcoes', LoginOpcoesController::class)->name('api.login.opcoes');
 
     // Versão/build da aplicação: pública (o rodapé do menu aparece no login).
     Route::get('/version', VersaoController::class)->name('api.version');

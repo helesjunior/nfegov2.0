@@ -3,9 +3,11 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\Concerns\Auditable;
 use App\Models\User;
 use App\Services\TwoFactorService;
 use App\Services\UserPresenter;
+use App\Support\GoogleLogin;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -20,6 +22,8 @@ use Illuminate\Validation\ValidationException;
  */
 class AuthController extends Controller
 {
+    use Auditable;
+
     public function __construct(private readonly UserPresenter $presenter)
     {
     }
@@ -64,6 +68,21 @@ class AuthController extends Controller
 
             throw ValidationException::withMessages([
                 'email' => 'Usuário inativo. Procure o administrador.',
+            ]);
+        }
+
+        // Modo exclusivo do Google: e-mail do domínio entra só pelo Google (o
+        // super-admin é a exceção). Só chega aqui com a senha CERTA, então a
+        // mensagem específica não ajuda quem está tentando adivinhar.
+        if (GoogleLogin::senhaBloqueada($user)) {
+            $this->audit('login.senha.bloqueado', ['motivo' => 'google_exclusivo'], 'usuario', $user->id, $user, $request);
+
+            Auth::guard('web')->logout();
+            $request->session()->invalidate();
+            Auth::forgetGuards();
+
+            throw ValidationException::withMessages([
+                'email' => 'Este usuário entra com o Google. Use o botão "Entrar com Google".',
             ]);
         }
 

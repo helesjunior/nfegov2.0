@@ -10,6 +10,7 @@
         "laravel/framework": "^13.17",
         "laravel/horizon": "^5.50",
         "laravel/sanctum": "^4.0",
+        "laravel/socialite": "^5.33",
         "laravel/tinker": "^3.0",
         "nfephp-org/sped-da": "^1.1",
         "nfephp-org/sped-nfe": "^5.2",

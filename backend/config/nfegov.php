@@ -212,6 +212,41 @@ return [
         'cert_root' => env('NFEGOV_CERT_ROOT', 'certificados'),
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Login com Google Workspace (opcional)
+    |--------------------------------------------------------------------------
+    |
+    | DESLIGADO por padrão: com `NFEGOV_GOOGLE_LOGIN_HABILITADO=false` as rotas
+    | `/auth/google/*` respondem 404, o botão não aparece na tela de login e o
+    | login por e-mail/senha segue exatamente como antes.
+    |
+    | O Google só AUTENTICA: o usuário precisa já estar cadastrado (e ativo) no
+    | NFeGov; não há criação automática de conta. O segundo fator (TOTP) do
+    | NFeGov continua valendo depois do login pelo Google.
+    |
+    | `dominios`: domínios do Workspace aceitos (claim `hd` do Google),
+    | separados por vírgula. Vazio = nenhum login pelo Google é aceito.
+    |
+    */
+
+    'google_login' => [
+        'habilitado' => (bool) env('NFEGOV_GOOGLE_LOGIN_HABILITADO', false),
+        'dominios' => array_values(array_filter(array_map(
+            static fn (string $d): string => strtolower(trim($d)),
+            explode(',', (string) env('NFEGOV_GOOGLE_DOMINIOS', '')),
+        ))),
+        // 'desligado' (padrão): só entra quem já foi cadastrado.
+        // 'pendente': o 1º login de alguém do domínio cria um cadastro INATIVO
+        // (papel consulta, sem entidade) que um administrador precisa aprovar.
+        // Qualquer outro valor é tratado como 'desligado'.
+        'autocadastro' => strtolower(trim((string) env('NFEGOV_GOOGLE_AUTOCADASTRO', 'desligado'))),
+        // Modo exclusivo: com o login Google no ar e o autocadastro 'pendente', quem
+        // não é super-admin não cria usuário nem entra por senha com e-mail do
+        // domínio permitido. Sem as duas condições a chave é IGNORADA (não tranca ninguém).
+        'exclusivo' => (bool) env('NFEGOV_GOOGLE_EXCLUSIVO', false),
+    ],
+
     'mfa' => [
         // Papéis que são OBRIGADOS a configurar/confirmar o segundo fator.
         'papeis_obrigatorios' => ['super-admin', 'admin-tenant'],

@@ -35,6 +35,13 @@ class UserPolicy
             return true;
         }
 
+        // Cadastro pendente (criado pelo Google, sem entidade): quem gerencia
+        // usuários pode assumi-lo, vinculando-o às SUAS entidades (o controller
+        // valida o vínculo).
+        if ($alvo->aprovacao_pendente) {
+            return true;
+        }
+
         return $this->compartilhaTenant($auth, $alvo);
     }
 

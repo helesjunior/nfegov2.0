@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
+  authApi,
   mensagemDeErro,
   tenantsApi,
   usuariosApi,
@@ -40,6 +41,17 @@ export function UsuariosPage() {
 
   const podeTodas = usuario?.pode_todas ?? false
   const meuId = usuario?.id ?? null
+  const ehSuperAdmin = usuario?.papeis?.includes('super-admin') ?? false
+
+  // Modo exclusivo do Google: quem não é super-admin não cadastra usuário (novos
+  // nascem pelo login Google e são aprovados aqui) e não troca e-mails.
+  const { data: opcoes } = useQuery({
+    queryKey: ['login-opcoes'],
+    queryFn: () => authApi.opcoes(),
+    staleTime: 5 * 60 * 1000,
+    retry: false,
+  })
+  const exclusivo = (opcoes?.google_exclusivo ?? false) && !ehSuperAdmin
 
   const { data, isLoading, isError } = useQuery({
     queryKey: ['usuarios', pagina],
@@ -62,17 +74,26 @@ export function UsuariosPage() {
     <div>
       <div className="pagina-topo">
         <h1>Usuários</h1>
-        <button
-          type="button"
-          className="botao"
-          onClick={() => {
-            setEditando(null)
-            setFormAberto((v) => !v)
-          }}
-        >
-          {formAberto && !editando ? 'Fechar' : 'Novo usuário'}
-        </button>
+        {!exclusivo && (
+          <button
+            type="button"
+            className="botao"
+            onClick={() => {
+              setEditando(null)
+              setFormAberto((v) => !v)
+            }}
+          >
+            {formAberto && !editando ? 'Fechar' : 'Novo usuário'}
+          </button>
+        )}
       </div>
+
+      {exclusivo && (
+        <div className="alerta alerta--info" role="note">
+          Os usuários se cadastram entrando com o Google. Quem aguarda aprovação aparece na lista:
+          edite para escolher o papel e a entidade e depois ative.
+        </div>
+      )}
 
       {formAberto && (
         <UsuarioForm
@@ -80,6 +101,7 @@ export function UsuariosPage() {
           usuarioAlvo={editando}
           entidadesDisponiveis={disponiveis}
           podeTodas={podeTodas}
+          emailTravado={exclusivo}
           onConcluido={() => {
             setFormAberto(false)
             setEditando(null)
@@ -126,7 +148,9 @@ export function UsuariosPage() {
                         : '—'}
                     </td>
                     <td>
-                      {u.ativo ? (
+                      {u.aprovacao_pendente ? (
+                        <span className="selo selo--alerta">aguardando aprovação</span>
+                      ) : u.ativo ? (
                         <span className="selo selo--ok">ativo</span>
                       ) : (
                         <span className="selo selo--neutro">inativo</span>
@@ -152,9 +176,9 @@ export function UsuariosPage() {
                               setFormAberto(true)
                             }}
                           >
-                            Editar
+                            {u.aprovacao_pendente ? 'Aprovar' : 'Editar'}
                           </button>
-                          <BotaoAtivo usuario={u} />
+                          {!u.aprovacao_pendente && <BotaoAtivo usuario={u} />}
                         </div>
                       )}
                     </td>
@@ -245,17 +269,22 @@ function UsuarioForm({
   usuarioAlvo,
   entidadesDisponiveis,
   podeTodas,
+  emailTravado,
   onConcluido,
   onCancelar,
 }: {
   usuarioAlvo: UsuarioAdmin | null
   entidadesDisponiveis: TenantResumo[]
   podeTodas: boolean
+  /** Modo exclusivo do Google: o e-mail é a identidade da conta e não muda. */
+  emailTravado: boolean
   onConcluido: () => void
   onCancelar: () => void
 }) {
   const queryClient = useQueryClient()
   const editando = Boolean(usuarioAlvo)
+  // Cadastro vindo do Google: aprovar = escolher papel e entidade (isso já ativa).
+  const aprovando = Boolean(usuarioAlvo?.aprovacao_pendente)
 
   const [nome, setNome] = useState(usuarioAlvo?.name ?? '')
   const [email, setEmail] = useState(usuarioAlvo?.email ?? '')
@@ -298,6 +327,11 @@ function UsuarioForm({
       return
     }
 
+    if (aprovando && tenants.length === 0) {
+      setErro('Escolha ao menos uma entidade para aprovar este cadastro.')
+      return
+    }
+
     salvar.mutate({
       name: nome,
       email,
@@ -309,7 +343,9 @@ function UsuarioForm({
 
   return (
     <div className="card">
-      <h2 style={{ marginTop: 0 }}>{editando ? 'Editar usuário' : 'Novo usuário'}</h2>
+      <h2 style={{ marginTop: 0 }}>
+        {aprovando ? 'Aprovar cadastro' : editando ? 'Editar usuário' : 'Novo usuário'}
+      </h2>
 
       {erro && (
         <div className="alerta alerta--erro" role="alert">
@@ -330,6 +366,8 @@ function UsuarioForm({
             type="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
+            readOnly={emailTravado}
+            title={emailTravado ? 'Gerenciado pelo Google: o e-mail não pode ser alterado.' : undefined}
             required
           />
         </div>
@@ -381,8 +419,16 @@ function UsuarioForm({
           )}
         </fieldset>
 
+        {emailTravado && (
+          // Linha própria (100%): uma dica dentro do campo o deixaria mais alto
+          // que os vizinhos e desalinharia a linha do formulário.
+          <p style={{ flexBasis: '100%', margin: 0, color: 'var(--cor-texto-suave)', fontSize: '0.875rem' }}>
+            O e-mail é gerenciado pelo Google e não pode ser alterado.
+          </p>
+        )}
+
         <button type="submit" className="botao" disabled={salvar.isPending}>
-          {salvar.isPending ? 'Salvando…' : 'Salvar'}
+          {salvar.isPending ? 'Salvando…' : aprovando ? 'Aprovar e ativar' : 'Salvar'}
         </button>
         {editando && (
           <button
