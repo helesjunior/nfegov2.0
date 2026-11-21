@@ -19,6 +19,7 @@ class LoginOpcoesController extends Controller
         return response()->json([
             'data' => [
                 'google' => GoogleLogin::disponivel(),
+                'google_exclusivo' => GoogleLogin::exclusivo(),
             ],
         ]);
     }

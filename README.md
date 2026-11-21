@@ -420,6 +420,24 @@ para o `super-admin` (com o contexto "Todas"), porque o `admin-tenant` só enxer
 às suas entidades; o evento fica na auditoria como `login.google.autocadastro`. Qualquer valor diferente
 de `pendente` equivale a `desligado`.
 
+**Modo exclusivo (opcional).** Com `NFEGOV_GOOGLE_EXCLUSIVO=true` — e somente se o login Google
+estiver no ar **e** o autocadastro for `pendente`; senão a chave é ignorada e ninguém é trancado —:
+
+- quem **não é `super-admin`** não cadastra usuário: a API recusa (403) e a tela Usuários esconde
+  "Novo usuário". Usuário novo nasce pelo login Google, como pendente;
+- o `admin-tenant` enxerga os pendentes na lista e os **ativa para a sua entidade** (só pode
+  vincular às entidades a que ele mesmo pertence); o pendente deixa de ser pendente quando recebe
+  uma entidade (auditoria `usuario.pendente.vinculado`);
+- quem tem e-mail de um domínio permitido **entra só pelo Google**: o login por senha é recusado
+  (auditoria `login.senha.bloqueado`). Suspender a conta no Workspace encerra o acesso;
+- o e-mail dessas contas não pode ser alterado por quem não é `super-admin`, nem pelo próprio
+  usuário (evita reabrir o login por senha trocando para um e-mail de fora do domínio);
+- **o `super-admin` continua como hoje**: entra por senha (com MFA), cadastra e edita usuários. É o
+  acesso de emergência caso o Google/OAuth saia do ar. Usuários com e-mail **fora** do domínio
+  também seguem entrando por senha.
+
+Sessões já abertas por senha não são derrubadas ao ligar o modo; expiram normalmente.
+
 **Configuração.**
 
 1. No Google Cloud Console, crie um **cliente OAuth** (aplicativo da Web). Na tela de consentimento,
@@ -484,6 +502,7 @@ Além das chaves padrão do Laravel, o NFeGov lê as seguintes (`config/nfegov.p
 | `NFEGOV_GOOGLE_LOGIN_HABILITADO` | `false` | Liga/desliga o login com Google Workspace (opcional; ver "Login com Google Workspace") |
 | `NFEGOV_GOOGLE_DOMINIOS` | _(vazio)_ | Domínios do Workspace aceitos, separados por vírgula (ex.: `exemplo.com.br`). Vazio = nenhum login Google é aceito |
 | `NFEGOV_GOOGLE_AUTOCADASTRO` | `desligado` | `pendente` cria um cadastro inativo (papel `consulta`, sem entidade) no 1º login Google de alguém do domínio; um `super-admin` aprova. Qualquer outro valor = desligado |
+| `NFEGOV_GOOGLE_EXCLUSIVO` | `false` | Modo exclusivo: sem cadastro manual (exceto super-admin) e sem senha para e-mail do domínio. Só vale com login Google no ar e `AUTOCADASTRO=pendente` |
 | `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | _(vazio)_ | Credenciais do cliente OAuth criado no Google Cloud |
 | `GOOGLE_REDIRECT_URI` | `<APP_URL>/auth/google/callback` | URI de retorno registrada no Google Cloud |
 

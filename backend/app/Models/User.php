@@ -28,6 +28,7 @@ class User extends Authenticatable
     {
         return [
             'ativo' => 'boolean',
+            'aprovacao_pendente' => 'boolean',
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
             'tenant_id' => 'integer',

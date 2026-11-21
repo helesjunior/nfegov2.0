@@ -34,6 +34,36 @@ final class GoogleLogin
         return self::habilitado() && self::configurado();
     }
 
+    /**
+     * Modo exclusivo ligado E em condições de valer: precisa do login Google no ar
+     * e do autocadastro 'pendente' (senão ninguém conseguiria ser cadastrado).
+     */
+    public static function exclusivo(): bool
+    {
+        return (bool) config('nfegov.google_login.exclusivo', false)
+            && self::disponivel()
+            && self::autocadastroPendente();
+    }
+
+    /** O e-mail é de um dos domínios do Workspace permitidos? */
+    public static function emailNoDominio(string $email): bool
+    {
+        $dominio = strtolower((string) substr(strrchr($email, '@') ?: '', 1));
+
+        return $dominio !== '' && in_array($dominio, self::dominios(), true);
+    }
+
+    /**
+     * No modo exclusivo, quem tem e-mail do domínio entra só pelo Google.
+     * O super-admin é a exceção (acesso de emergência por senha + MFA).
+     */
+    public static function senhaBloqueada(\App\Models\User $user): bool
+    {
+        return self::exclusivo()
+            && ! $user->hasRole('super-admin')
+            && self::emailNoDominio((string) $user->email);
+    }
+
     /** O 1º login de alguém do domínio cria um cadastro inativo (pendente de aprovação)? */
     public static function autocadastroPendente(): bool
     {

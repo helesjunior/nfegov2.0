@@ -15,6 +15,7 @@ class UserResource extends JsonResource
             'name' => $this->name,
             'email' => $this->email,
             'ativo' => (bool) $this->ativo,
+            'aprovacao_pendente' => (bool) $this->aprovacao_pendente,
             'tenant_id' => $this->tenant_id,
             'papeis' => $this->getRoleNames(),
             'tenants' => $this->whenLoaded('tenants', fn () => $this->tenants->map(

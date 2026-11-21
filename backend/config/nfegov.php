@@ -241,6 +241,10 @@ return [
         // (papel consulta, sem entidade) que um administrador precisa aprovar.
         // Qualquer outro valor é tratado como 'desligado'.
         'autocadastro' => strtolower(trim((string) env('NFEGOV_GOOGLE_AUTOCADASTRO', 'desligado'))),
+        // Modo exclusivo: com o login Google no ar e o autocadastro 'pendente', quem
+        // não é super-admin não cria usuário nem entra por senha com e-mail do
+        // domínio permitido. Sem as duas condições a chave é IGNORADA (não tranca ninguém).
+        'exclusivo' => (bool) env('NFEGOV_GOOGLE_EXCLUSIVO', false),
     ],
 
     'mfa' => [

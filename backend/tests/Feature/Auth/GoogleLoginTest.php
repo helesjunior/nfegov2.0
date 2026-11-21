@@ -330,6 +330,7 @@ class GoogleLoginTest extends TestCase
         $u = $this->pendentes()->sole();
         $this->assertSame('Nova Pessoa', $u->name);
         $this->assertFalse($u->ativo);
+        $this->assertTrue($u->aprovacao_pendente);
         $this->assertSame('sub-nova', $u->google_id);
         $this->assertNull($u->tenant_id);
         $this->assertSame(0, $u->tenants()->count());

@@ -139,7 +139,7 @@ class GoogleLoginController extends Controller
                     'tenant_id' => null,
                     'ativo' => false,
                 ]);
-                $u->forceFill(['google_id' => $sub])->save();
+                $u->forceFill(['google_id' => $sub, 'aprovacao_pendente' => true])->save();
                 $u->assignRole('consulta');
 
                 return $u;
