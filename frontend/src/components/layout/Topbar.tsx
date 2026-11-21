@@ -4,6 +4,7 @@ import { authApi, type Usuario } from '../../lib/api'
 import { useTema } from '../../lib/tema'
 import { SeletorEntidade } from '../../features/sessao/SeletorEntidade'
 import { Icone } from '../ui/Icone'
+import { limparCacheDaSessao } from '../../features/auth/session'
 
 /** Iniciais para o avatar (ex.: "Maria da Silva" → "MS"). */
 function iniciais(nome: string): string {
@@ -26,7 +27,7 @@ export function Topbar({ usuario }: { usuario: Usuario }) {
     mutationFn: () => authApi.logout(),
     onSettled: () => {
       // Limpa o cache (sessão e dados do tenant) e volta ao login.
-      queryClient.clear()
+      limparCacheDaSessao(queryClient)
       navigate('/login')
     },
   })

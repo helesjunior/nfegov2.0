@@ -1,5 +1,5 @@
 import { createContext, useContext, useMemo, type ReactNode } from 'react'
-import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query'
 import { authApi, type Usuario } from '../../lib/api'
 
 /**
@@ -16,6 +16,20 @@ interface SessionContextValue {
 }
 
 const SessionContext = createContext<SessionContextValue | null>(null)
+
+/**
+ * Descarta o cache ao sair da conta.
+ *
+ * NÃO use `queryClient.clear()` aqui: com o `SessionProvider` montado ele apaga a
+ * query da sessão, mas o provedor continua preso à query antiga e, depois do login
+ * de OUTRO usuário (sem recarregar a página), segue mostrando o usuário anterior.
+ * Aqui a query da sessão é só reiniciada (o provedor continua ligado a ela) e o
+ * resto do cache é removido.
+ */
+export function limparCacheDaSessao(queryClient: QueryClient): void {
+  queryClient.removeQueries({ predicate: (query) => query.queryKey[0] !== 'sessao' })
+  void queryClient.resetQueries({ queryKey: ['sessao'] })
+}
 
 export function SessionProvider({ children }: { children: ReactNode }) {
   const queryClient = useQueryClient()
