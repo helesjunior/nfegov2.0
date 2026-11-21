@@ -4,6 +4,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { mfaApi, perfilApi, mensagemDeErro } from '../../lib/api'
 import { useSessao } from '../auth/session'
 import { useStepUp } from '../auth/stepUp'
+import { QrCodeMfa } from '../../components/ui/QrCodeMfa'
 
 /**
  * "Minha conta": o usuário logado edita os próprios dados e escolhe o MFA.
@@ -313,12 +314,11 @@ function FluxoAtivarMfa({
     <div>
       {setup.data ? (
         <div className="alerta alerta--info">
-          <p>Adicione a conta ao seu autenticador usando o segredo abaixo:</p>
-          <p style={{ fontFamily: 'var(--fonte-mono)', wordBreak: 'break-all' }}>{setup.data.secret}</p>
+          <QrCodeMfa qrUrl={setup.data.qr_url} segredo={setup.data.secret} />
         </div>
       ) : (
         <button type="button" className="botao botao--secundario" onClick={() => setup.mutate()} disabled={setup.isPending}>
-          {setup.isPending ? 'Gerando…' : 'Gerar segredo / QR Code'}
+          {setup.isPending ? 'Gerando…' : 'Gerar QR Code'}
         </button>
       )}
 

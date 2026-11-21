@@ -13,10 +13,11 @@ import { useStepUp } from './stepUp'
 
 const navigateMock = vi.fn()
 const verifyMock = vi.fn()
+const setupMock = vi.fn()
 
 vi.mock('../../lib/api', () => ({
   mfaApi: {
-    setup: vi.fn(),
+    setup: (...args: unknown[]) => setupMock(...args),
     confirm: vi.fn(),
     verify: (...args: unknown[]) => verifyMock(...args),
   },
@@ -25,10 +26,9 @@ vi.mock('../../lib/api', () => ({
 }))
 
 // Sessão com MFA já ativo (não pendente): caminho de "verificar".
+let usuarioAtual = { id: 1, mfa_pendente: false, mfa_confirmado: true }
 vi.mock('./session', () => ({
-  useSessao: () => ({
-    usuario: { id: 1, mfa_pendente: false, mfa_confirmado: true },
-  }),
+  useSessao: () => ({ usuario: usuarioAtual }),
 }))
 
 vi.mock('react-router-dom', async () => {
@@ -73,6 +73,8 @@ describe('MfaPage', () => {
   beforeEach(() => {
     navigateMock.mockReset()
     verifyMock.mockReset()
+    setupMock.mockReset()
+    usuarioAtual = { id: 1, mfa_pendente: false, mfa_confirmado: true }
     const { result } = renderHookStepUp()
     act(() => result.current.limparTudo())
   })
@@ -91,6 +93,21 @@ describe('MfaPage', () => {
     // O rascunho permanece para o formulário de origem consumir.
     const { result } = renderHookStepUp()
     expect(result.current.consumirRascunho('tenant')?.dados).toEqual({ nome: 'X' })
+  })
+
+  it('MFA pendente: ao gerar, mostra o QR Code e o segredo em texto', async () => {
+    const user = userEvent.setup()
+    usuarioAtual = { id: 1, mfa_pendente: true, mfa_confirmado: false }
+    setupMock.mockResolvedValue({
+      secret: 'JBSWY3DPEHPK3PXP',
+      qr_url: 'otpauth://totp/NFeGov:f@x.com?secret=JBSWY3DPEHPK3PXP&issuer=NFeGov',
+    })
+
+    renderMfa()
+    await user.click(screen.getByRole('button', { name: /gerar qr code/i }))
+
+    expect(await screen.findByTitle(/qr code para cadastrar o autenticador/i)).toBeInTheDocument()
+    expect(screen.getByText('JBSWY3DPEHPK3PXP')).toBeInTheDocument()
   })
 
   it('sem rota de retorno, volta para a tela inicial', async () => {

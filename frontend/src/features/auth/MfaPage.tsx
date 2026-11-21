@@ -5,6 +5,7 @@ import { mfaApi, mensagemDeErro } from '../../lib/api'
 import { useSessao } from './session'
 import { useStepUp } from './stepUp'
 import { AuthLayout } from '../../components/layout/AuthLayout'
+import { QrCodeMfa } from '../../components/ui/QrCodeMfa'
 
 /**
  * Tela do segundo fator (TOTP).
@@ -90,12 +91,7 @@ export function MfaPage() {
       {pendente && (
         <div className="alerta alerta--info">
           {setup.data ? (
-            <>
-              <p>Adicione a conta ao seu autenticador usando o segredo abaixo:</p>
-              <p style={{ fontFamily: 'var(--fonte-mono)', wordBreak: 'break-all' }}>
-                {setup.data.secret}
-              </p>
-            </>
+            <QrCodeMfa qrUrl={setup.data.qr_url} segredo={setup.data.secret} />
           ) : (
             <button
               type="button"
@@ -103,7 +99,7 @@ export function MfaPage() {
               onClick={() => setup.mutate()}
               disabled={setup.isPending}
             >
-              {setup.isPending ? 'Gerando…' : 'Gerar segredo / QR Code'}
+              {setup.isPending ? 'Gerando…' : 'Gerar QR Code'}
             </button>
           )}
         </div>

@@ -1206,3 +1206,18 @@ a:hover {
   border: none;
   box-shadow: none;
 }
+
+/* Cadastro do autenticador (MFA): QR Code + segredo em texto */
+.mfa-qr__imagem {
+  display: inline-block;
+  padding: 4px;
+  background: #fff;
+  border-radius: 8px;
+  line-height: 0;
+  margin: 4px 0 12px;
+}
+
+.mfa-qr__segredo {
+  font-family: var(--fonte-mono);
+  word-break: break-all;
+}
