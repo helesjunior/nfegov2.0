@@ -400,7 +400,8 @@ qualquer um, o recurso continua desligado.
 **Como funciona.** O Google só *autentica* quem é a pessoa; quem pode entrar continua sendo
 decidido pelo NFeGov:
 
-- o usuário **precisa já estar cadastrado e ativo** (tela Usuários); não há criação automática de conta;
+- o usuário **precisa já estar cadastrado e ativo** (tela Usuários); por padrão não há criação
+  automática de conta (ver **Cadastro pendente**, abaixo);
 - o e-mail precisa ser de um domínio de `NFEGOV_GOOGLE_DOMINIOS`, confirmado pelo claim `hd` que o
   **Google devolve** (contas pessoais `@gmail.com` são recusadas) e com `email_verified`;
 - no primeiro login a conta Google é amarrada ao usuário pelo identificador fixo (`sub`, coluna
@@ -409,6 +410,15 @@ decidido pelo NFeGov:
   (`super-admin`, `admin-tenant`) caem em `/mfa` como no login por senha;
 - toda tentativa é auditada (`login.google` / `login.google.negado`, com o motivo). Na tela vai só
   um código genérico, que não revela se o e-mail existe no sistema.
+
+**Cadastro pendente (opcional).** Com `NFEGOV_GOOGLE_AUTOCADASTRO=pendente`, o primeiro login de
+alguém de um domínio permitido que ainda não existe cria um cadastro **inativo**, com papel `consulta`,
+**sem vínculo com entidade** e senha aleatória (o acesso é só pelo Google). A pessoa vê *"Cadastro
+recebido…"* e **não entra**. O acesso só é liberado quando um `super-admin` ativa o usuário e o vincula
+a uma ou mais entidades na tela Usuários. Observações: o usuário pendente aparece na listagem apenas
+para o `super-admin` (com o contexto "Todas"), porque o `admin-tenant` só enxerga usuários vinculados
+às suas entidades; o evento fica na auditoria como `login.google.autocadastro`. Qualquer valor diferente
+de `pendente` equivale a `desligado`.
 
 **Configuração.**
 
@@ -473,6 +483,7 @@ Além das chaves padrão do Laravel, o NFeGov lê as seguintes (`config/nfegov.p
 | `NFEGOV_CERT_DISK` / `NFEGOV_CERT_ROOT` | `local` / `certificados` | Disco e raiz dos PFX |
 | `NFEGOV_GOOGLE_LOGIN_HABILITADO` | `false` | Liga/desliga o login com Google Workspace (opcional; ver "Login com Google Workspace") |
 | `NFEGOV_GOOGLE_DOMINIOS` | _(vazio)_ | Domínios do Workspace aceitos, separados por vírgula (ex.: `exemplo.com.br`). Vazio = nenhum login Google é aceito |
+| `NFEGOV_GOOGLE_AUTOCADASTRO` | `desligado` | `pendente` cria um cadastro inativo (papel `consulta`, sem entidade) no 1º login Google de alguém do domínio; um `super-admin` aprova. Qualquer outro valor = desligado |
 | `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | _(vazio)_ | Credenciais do cliente OAuth criado no Google Cloud |
 | `GOOGLE_REDIRECT_URI` | `<APP_URL>/auth/google/callback` | URI de retorno registrada no Google Cloud |
 

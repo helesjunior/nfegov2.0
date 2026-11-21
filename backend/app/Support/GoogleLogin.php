@@ -33,4 +33,10 @@ final class GoogleLogin
     {
         return self::habilitado() && self::configurado();
     }
+
+    /** O 1º login de alguém do domínio cria um cadastro inativo (pendente de aprovação)? */
+    public static function autocadastroPendente(): bool
+    {
+        return config('nfegov.google_login.autocadastro', 'desligado') === 'pendente';
+    }
 }

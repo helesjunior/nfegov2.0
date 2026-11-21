@@ -16,6 +16,11 @@ const ERROS_GOOGLE: Record<string, string> = {
   google_falhou: 'Não foi possível entrar com o Google. Tente novamente.',
 }
 
+/** Não é erro: o cadastro foi criado e aguarda um administrador. */
+const AVISOS_GOOGLE: Record<string, string> = {
+  google_pendente: 'Cadastro recebido. Seu acesso será liberado após a aprovação de um administrador.',
+}
+
 /**
  * Tela de login.
  *
@@ -36,6 +41,7 @@ export function LoginPage() {
   const [email, setEmail] = useState('')
   const [senha, setSenha] = useState('')
   const [erro, setErro] = useState<string | null>(() => ERROS_GOOGLE[params.get('erro') ?? ''] ?? null)
+  const [aviso] = useState<string | null>(() => AVISOS_GOOGLE[params.get('erro') ?? ''] ?? null)
 
   const opcoes = useQuery({
     queryKey: ['login-opcoes'],
@@ -64,6 +70,12 @@ export function LoginPage() {
     <AuthLayout>
       <h1 className="auth-titulo">Acesse sua conta</h1>
       <p className="auth-subtitulo">Entre com seu e-mail e senha para acessar o sistema.</p>
+
+      {aviso && (
+        <div className="alerta alerta--info" role="status">
+          {aviso}
+        </div>
+      )}
 
       {erro && (
         <div className="alerta alerta--erro" role="alert">

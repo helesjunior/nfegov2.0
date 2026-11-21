@@ -298,6 +298,127 @@ class GoogleLoginTest extends TestCase
         $this->assertGuest();
     }
 
+    // ---- cadastro pendente (NFEGOV_GOOGLE_AUTOCADASTRO=pendente) ---------------
+
+    private function pendente(): void
+    {
+        $this->ligar();
+        config(['nfegov.google_login.autocadastro' => 'pendente']);
+    }
+
+    private function pendentes(): \Illuminate\Database\Eloquent\Collection
+    {
+        return User::withoutGlobalScopes()->where('email', 'nova@exemplo.com.br')->get();
+    }
+
+    public function test_autocadastro_vem_desligado_por_padrao(): void
+    {
+        $this->assertFalse(\App\Support\GoogleLogin::autocadastroPendente());
+
+        config(['nfegov.google_login.autocadastro' => 'qualquer-coisa']);
+        $this->assertFalse(\App\Support\GoogleLogin::autocadastroPendente());
+    }
+
+    public function test_pendente_cria_cadastro_inativo_consulta_sem_entidade_e_nao_loga(): void
+    {
+        $this->pendente();
+        $this->google(['email' => 'nova@exemplo.com.br', 'sub' => 'sub-nova', 'name' => 'Nova Pessoa']);
+
+        $this->get('/auth/google/callback')->assertRedirect('/login?erro=google_pendente');
+
+        $this->assertGuest();
+        $u = $this->pendentes()->sole();
+        $this->assertSame('Nova Pessoa', $u->name);
+        $this->assertFalse($u->ativo);
+        $this->assertSame('sub-nova', $u->google_id);
+        $this->assertNull($u->tenant_id);
+        $this->assertSame(0, $u->tenants()->count());
+        $this->assertSame(['consulta'], $u->getRoleNames()->all());
+        $this->assertNotEmpty($u->password);
+        $this->assertDatabaseHas('audit_logs', ['acao' => 'login.google.autocadastro']);
+    }
+
+    public function test_pendente_usa_a_parte_local_do_email_quando_o_google_nao_manda_nome(): void
+    {
+        $this->pendente();
+        $this->google(['email' => 'nova@exemplo.com.br', 'sub' => 'sub-nova', 'name' => '']);
+
+        $this->get('/auth/google/callback');
+
+        $this->assertSame('nova', $this->pendentes()->sole()->name);
+    }
+
+    public function test_pendente_nao_cria_para_dominio_fora_da_lista_nem_sem_hd_nem_nao_verificado(): void
+    {
+        $this->pendente();
+
+        foreach ([
+            ['email' => 'nova@outro.com.br', 'hd' => 'outro.com.br'],
+            ['email' => 'nova@exemplo.com.br', 'hd' => ''],
+            ['email' => 'nova@exemplo.com.br', 'email_verified' => false],
+            ['email' => 'nova@gmail.com', 'hd' => 'exemplo.com.br'],
+        ] as $caso) {
+            $this->google($caso + ['sub' => 'sub-x']);
+            $this->get('/auth/google/callback')->assertRedirect('/login?erro=google_nao_autorizado');
+        }
+
+        $this->assertSame(0, User::withoutGlobalScopes()->count());
+    }
+
+    public function test_pendente_segunda_tentativa_nao_duplica_e_continua_negada(): void
+    {
+        $this->pendente();
+        $this->google(['email' => 'nova@exemplo.com.br', 'sub' => 'sub-nova']);
+
+        $this->get('/auth/google/callback')->assertRedirect('/login?erro=google_pendente');
+        $this->get('/auth/google/callback')->assertRedirect('/login?erro=google_nao_autorizado');
+
+        $this->assertCount(1, $this->pendentes());
+        $this->assertGuest();
+    }
+
+    public function test_pendente_usuario_ja_cadastrado_entra_normalmente_sem_criar_outro(): void
+    {
+        $this->pendente();
+        $this->usuario();
+        $this->google();
+
+        $this->get('/auth/google/callback')->assertRedirect('/');
+
+        $this->assertAuthenticated();
+        $this->assertSame(1, User::withoutGlobalScopes()->count());
+    }
+
+    public function test_pendente_depois_de_aprovado_e_vinculado_a_pessoa_consegue_entrar(): void
+    {
+        $this->pendente();
+        $this->google(['email' => 'nova@exemplo.com.br', 'sub' => 'sub-nova']);
+        $this->get('/auth/google/callback');
+
+        // O administrador ativa e vincula a uma entidade.
+        $u = $this->pendentes()->sole();
+        $tenant = Tenant::factory()->create();
+        $u->update(['ativo' => true, 'tenant_id' => $tenant->id]);
+        $u->tenants()->sync([$tenant->id]);
+
+        $this->get('/auth/google/callback')->assertRedirect('/');
+        $this->assertAuthenticatedAs($u->fresh());
+    }
+
+    public function test_pendente_falha_na_criacao_volta_para_o_login_sem_vazar_detalhe(): void
+    {
+        $this->pendente();
+        // Papel inexistente: a criação precisa ser desfeita por inteiro.
+        \Spatie\Permission\Models\Role::where('name', 'consulta')->delete();
+        app(\Spatie\Permission\PermissionRegistrar::class)->forgetCachedPermissions();
+        $this->google(['email' => 'nova@exemplo.com.br', 'sub' => 'sub-nova']);
+
+        $this->get('/auth/google/callback')->assertRedirect('/login?erro=google_falhou');
+
+        $this->assertCount(0, $this->pendentes());
+        $this->assertGuest();
+    }
+
     public function test_motivo_detalhado_fica_so_na_auditoria_e_nao_na_url(): void
     {
         $this->ligar();

@@ -175,6 +175,13 @@ describe('LoginPage', () => {
       expect(screen.getByRole('alert')).toHaveTextContent(/não tem acesso ao sistema/i)
     })
 
+    it('mostra um aviso (não um erro) quando o cadastro ficou pendente de aprovação', () => {
+      renderLogin('/login?erro=google_pendente')
+
+      expect(screen.getByRole('status')).toHaveTextContent(/cadastro recebido/i)
+      expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    })
+
     it('ignora códigos de erro desconhecidos (nada da URL é refletido)', () => {
       renderLogin('/login?erro=<b>injetado</b>')
 

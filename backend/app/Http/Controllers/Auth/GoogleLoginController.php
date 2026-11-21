@@ -10,7 +10,9 @@ use App\Support\GoogleLogin;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
 use Laravel\Socialite\Facades\Socialite;
 use Throwable;
 
@@ -18,8 +20,10 @@ use Throwable;
  * Login com Google Workspace (opcional; ver `config/nfegov.php`).
  *
  * O Google só AUTENTICA quem é a pessoa. Quem pode entrar continua sendo
- * decidido pelo NFeGov: o usuário precisa já existir e estar ativo (não há
- * criação automática de conta) e o e-mail precisa ser de um domínio permitido.
+ * decidido pelo NFeGov: o usuário precisa já existir e estar ativo e o e-mail
+ * precisa ser de um domínio permitido. Por padrão não há criação automática de
+ * conta; com `NFEGOV_GOOGLE_AUTOCADASTRO=pendente`, quem é do domínio mas ainda
+ * não existe vira um cadastro INATIVO, sem entidade, à espera de aprovação.
  *
  * Depois do login, a sessão segue o mesmo caminho do login por senha: o
  * segundo fator (TOTP) do NFeGov continua sendo exigido pelos mesmos papéis —
@@ -82,6 +86,10 @@ class GoogleLoginController extends Controller
             ?? User::withoutGlobalScopes()->whereRaw('lower(email) = ?', [$email])->first();
 
         if ($user === null) {
+            if (GoogleLogin::autocadastroPendente()) {
+                return $this->cadastrarPendente($request, $sub, $email, (string) $google->getName(), $dominio);
+            }
+
             return $this->negar($request, 'google_nao_autorizado', 'usuario_nao_cadastrado', $email);
         }
 
@@ -107,6 +115,45 @@ class GoogleLoginController extends Controller
         $this->audit('login.google', ['dominio' => $dominio], 'usuario', $user->id, $user, $request);
 
         return redirect('/');
+    }
+
+    /**
+     * Cria o cadastro PENDENTE: inativo, papel `consulta`, sem vínculo com
+     * entidade e com senha aleatória (o acesso é só pelo Google). Nada disso dá
+     * acesso a dados: o usuário não entra até um administrador ativá-lo e
+     * vinculá-lo a uma entidade.
+     */
+    private function cadastrarPendente(
+        Request $request,
+        string $sub,
+        string $email,
+        string $nome,
+        string $dominio,
+    ): RedirectResponse {
+        try {
+            $novo = DB::transaction(function () use ($sub, $email, $nome): User {
+                $u = User::create([
+                    'name' => Str::limit(trim($nome) !== '' ? trim($nome) : Str::before($email, '@'), 255, ''),
+                    'email' => $email,
+                    'password' => Str::random(64),
+                    'tenant_id' => null,
+                    'ativo' => false,
+                ]);
+                $u->forceFill(['google_id' => $sub])->save();
+                $u->assignRole('consulta');
+
+                return $u;
+            });
+        } catch (Throwable $e) {
+            // Corrida (mesmo e-mail criado por outra requisição), papel ausente etc.
+            Log::warning('Login Google: falha ao criar o cadastro pendente.', ['erro' => class_basename($e)]);
+
+            return $this->negar($request, 'google_falhou', 'falha_no_autocadastro', $email);
+        }
+
+        $this->audit('login.google.autocadastro', ['dominio' => $dominio], 'usuario', $novo->id, $novo, $request);
+
+        return redirect('/login?erro=google_pendente');
     }
 
     /**

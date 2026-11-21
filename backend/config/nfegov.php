@@ -236,6 +236,11 @@ return [
             static fn (string $d): string => strtolower(trim($d)),
             explode(',', (string) env('NFEGOV_GOOGLE_DOMINIOS', '')),
         ))),
+        // 'desligado' (padrão): só entra quem já foi cadastrado.
+        // 'pendente': o 1º login de alguém do domínio cria um cadastro INATIVO
+        // (papel consulta, sem entidade) que um administrador precisa aprovar.
+        // Qualquer outro valor é tratado como 'desligado'.
+        'autocadastro' => strtolower(trim((string) env('NFEGOV_GOOGLE_AUTOCADASTRO', 'desligado'))),
     ],
 
     'mfa' => [
